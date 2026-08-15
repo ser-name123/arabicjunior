@@ -11,7 +11,10 @@ services:
   - type: web
     name: arabic-juniors-api
     runtime: node
-    plan: starter # free tier sleeps after 15 min idle; a cold start is ~50s
+    # Free instances sleep after 15 minutes of inactivity and take roughly 50s
+    # to wake, which a visitor submitting the trial form would sit through.
+    # Upgrade to `starter` before sending real traffic here.
+    plan: free
     region: frankfurt # closest available region to the UAE audience
     rootDir: arabic-server-main
     buildCommand: pnpm install --frozen-lockfile && pnpm build
