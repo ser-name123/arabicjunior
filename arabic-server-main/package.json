@@ -7,6 +7,7 @@
     "dev": "ts-node-dev --respawn --transpile-only api/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "create-admin": "ts-node --transpile-only scripts/create-admin.ts",
     "clean": "pnpm -r exec rm -rf node_modules && pnpm store prune"
   },
   "keywords": [],

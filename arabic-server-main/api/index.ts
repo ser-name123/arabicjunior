@@ -54,20 +54,40 @@ const limiter = rateLimit({
 });
 
 // Recursively strip HTML from every string in a payload. The previous version
-// only walked top-level keys, so anything nested was left untouched.
+// only walked top-level keys — and, being registered before the body parsers,
+// never actually ran.
+//
+// Fields that must pass through byte-for-byte. sanitize-html escapes "&" to
+// "&amp;" and drops "<x", so running it over a credential silently rewrites
+// it: the value that reaches bcrypt is not the one the user typed, and any
+// account whose password contains "&" or "<" can no longer sign in. Secrets
+// are compared, never rendered, so there is nothing to sanitise here anyway.
+const SKIP_SANITIZE_KEYS = new Set([
+  "password",
+  "oldPassword",
+  "newPassword",
+  "confirmPassword",
+  "token",
+  "tempToken",
+  "masterKey",
+  "code",
+]);
+
 const MAX_SANITIZE_DEPTH = 10;
-const stripHtml = (value: unknown, depth = 0): unknown => {
+const stripHtml = (value: unknown, key?: string, depth = 0): unknown => {
   if (depth > MAX_SANITIZE_DEPTH) return value;
+  if (key && SKIP_SANITIZE_KEYS.has(key)) return value;
+
   if (typeof value === "string") {
     return sanitizeHtml(value, { allowedTags: [], allowedAttributes: {} });
   }
   if (Array.isArray(value)) {
-    return value.map((v) => stripHtml(v, depth + 1));
+    return value.map((v) => stripHtml(v, key, depth + 1));
   }
   if (value && typeof value === "object" && (value as object).constructor === Object) {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = stripHtml(v, depth + 1);
+      out[k] = stripHtml(v, k, depth + 1);
     }
     return out;
   }
@@ -106,7 +126,7 @@ connectDB()
     // undefined, so this middleware used to be a no-op.
     app.use((req: Request, _res: Response, next: NextFunction) => {
       if (req.body && typeof req.body === "object") {
-        req.body = stripHtml(req.body) as typeof req.body;
+        req.body = stripHtml(req.body, undefined, 0) as typeof req.body;
       }
       next();
     });
