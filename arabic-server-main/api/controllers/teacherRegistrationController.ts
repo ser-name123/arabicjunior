@@ -49,10 +49,18 @@ export const teacherRegistration = async (req: Request, res: Response) => {
     await teachers.save();
 
     // send reply email after register a teacher
-    await sendTeacherRegistrationReplyEmail({ ...body });
+    try {
+      await sendTeacherRegistrationReplyEmail({ ...body });
+    } catch (emailErr) {
+      console.error("Failed to send teacher registration reply email:", emailErr);
+    }
 
     // send a email to admin after register a teacher
-    await sendTeacherRegToAdmin({ ...body });
+    try {
+      await sendTeacherRegToAdmin({ ...body });
+    } catch (emailErr) {
+      console.error("Failed to send teacher registration email to admin:", emailErr);
+    }
 
     res.status(200).json({ message: "Registration successful" });
   } catch (error) {
@@ -70,5 +78,57 @@ export const teacherRegistration = async (req: Request, res: Response) => {
         })
       )
     );
+  }
+};
+
+// GET: Fetch all teacher registrations (Admin Only)
+export const getTeacherRegistrations = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const registrations = await TeacherRegistration.find().sort({ createdAt: -1 });
+    res.status(200).json({ success: true, data: registrations });
+  } catch (error) {
+    console.error("Error fetching teacher registrations:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch teacher registrations" });
+  }
+};
+
+// DELETE: Remove a teacher registration (Admin Only)
+export const deleteTeacherRegistration = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const registration = await TeacherRegistration.findById(req.params.id);
+    if (!registration) {
+      return res.status(404).json({ success: false, message: "Registration not found" });
+    }
+
+    // Clean up uploaded files from Cloudinary
+    const fileFields = ["personal_image", "doc_1", "doc_2", "doc_3", "doc_4"] as const;
+    for (const field of fileFields) {
+      const url = registration[field];
+      if (url && url.includes("cloudinary.com")) {
+        try {
+          const parts = url.split("/upload/");
+          if (parts.length > 1) {
+            const pathParts = parts[1].split("/");
+            const startIndex = pathParts[0].startsWith("v") ? 1 : 0;
+            const fullPublicIdWithExt = pathParts.slice(startIndex).join("/");
+            const lastDotIndex = fullPublicIdWithExt.lastIndexOf(".");
+            const publicId = lastDotIndex > -1 ? fullPublicIdWithExt.substring(0, lastDotIndex) : fullPublicIdWithExt;
+            await cloudinary.uploader.destroy(publicId, { resource_type: "auto" });
+          }
+        } catch (destroyErr) {
+          console.error("Cloudinary asset deletion error:", destroyErr);
+        }
+      }
+    }
+
+    await TeacherRegistration.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: "Teacher registration deleted successfully!",
+    });
+  } catch (error) {
+    console.error("Error deleting teacher registration:", error);
+    res.status(500).json({ success: false, message: "Server error during registration deletion" });
   }
 };

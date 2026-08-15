@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import ContactMessage from "../models/contactMessage";
+import ContactSettings from "../models/contactSettings";
 import { sendEmailToAdmin } from "../utils/sendEmailToAdmin";
 
+// POST: Submit a contact message (Public)
 export const submitContactMessage = async (req: Request, res: Response) => {
     try {
         const { fullName, email, contactingPurpose, message } = req.body;
@@ -30,7 +32,7 @@ export const submitContactMessage = async (req: Request, res: Response) => {
                         <p style="font-size: 16px; color: #333333;">
                         You’ve received a new contact message via <a href="https://arabicjuniors.com" style="color: #EF4444; text-decoration: none;">ArabicJuniors.com</a>:
                         </p>
-
+ 
                         <table style="width: 100%; margin-top: 20px; font-size: 15px;">
                         <tr>
                             <td style="padding: 8px 0;"><strong>Name:</strong></td>
@@ -49,7 +51,7 @@ export const submitContactMessage = async (req: Request, res: Response) => {
                             <td><pre style="white-space: pre-wrap; font-family: inherit; color: #444444;">${message}</pre></td>
                         </tr>
                         </table>
-
+ 
                         <p style="font-size: 14px; color: #999999; margin-top: 30px;">
                         This message was submitted from <a href="https://arabicjuniors.com" style="color: #EF4444; text-decoration: none;">ArabicJuniors.com</a> contact form.
                         </p>
@@ -58,7 +60,7 @@ export const submitContactMessage = async (req: Request, res: Response) => {
                 </table>
                 </td>
             </tr>
-            </table>`
+            </table>`;
 
         // Send email notification
         await sendEmailToAdmin({
@@ -71,4 +73,107 @@ export const submitContactMessage = async (req: Request, res: Response) => {
         console.error("Contact Form Submission Error:", error);
         res.status(500).json({ message: "Failed to submit contact message" });
     }
+};
+
+// GET: Fetch contact settings info (Public)
+export const getContactSettings = async (req: Request, res: Response): Promise<any> => {
+  try {
+    let settings = await ContactSettings.findOne();
+    if (!settings) {
+      settings = new ContactSettings();
+      await settings.save();
+    }
+    res.status(200).json({ success: true, data: settings });
+  } catch (error) {
+    console.error("Error fetching contact settings:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch contact settings" });
+  }
+};
+
+// PUT: Update contact settings info (Admin Only)
+export const updateContactSettings = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const {
+      headerPhone,
+      headerPhoneLink,
+      contactEmail,
+      contactLocation,
+      contactPhone,
+      contactWhatsApp,
+      contactWhatsAppLink
+    } = req.body;
+
+    let settings = await ContactSettings.findOne();
+    if (!settings) {
+      settings = new ContactSettings();
+    }
+
+    if (headerPhone !== undefined) settings.headerPhone = headerPhone;
+    if (headerPhoneLink !== undefined) settings.headerPhoneLink = headerPhoneLink;
+    if (contactEmail !== undefined) settings.contactEmail = contactEmail;
+    if (contactLocation !== undefined) settings.contactLocation = contactLocation;
+    if (contactPhone !== undefined) settings.contactPhone = contactPhone;
+    if (contactWhatsApp !== undefined) settings.contactWhatsApp = contactWhatsApp;
+    if (contactWhatsAppLink !== undefined) settings.contactWhatsAppLink = contactWhatsAppLink;
+
+    await settings.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Contact settings updated successfully!",
+      data: settings
+    });
+  } catch (error) {
+    console.error("Error updating contact settings:", error);
+    res.status(500).json({ success: false, message: "Failed to update contact settings" });
+  }
+};
+
+// GET: List all submitted contact messages (Admin Only)
+export const listContactMessages = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const messages = await ContactMessage.find().sort({ createdAt: -1 });
+    res.status(200).json({ success: true, data: messages });
+  } catch (error) {
+    console.error("Error listing contact messages:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch contact messages" });
+  }
+};
+
+// PUT: Update status of a contact message (Admin Only)
+export const updateContactMessageStatus = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { action_taken } = req.body;
+    const message = await ContactMessage.findById(req.params.id);
+    if (!message) {
+      return res.status(404).json({ success: false, message: "Message not found" });
+    }
+
+    message.action_taken = action_taken;
+    message.action_date = new Date();
+    await message.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Message status updated successfully!",
+      data: message
+    });
+  } catch (error) {
+    console.error("Error updating message status:", error);
+    res.status(500).json({ success: false, message: "Failed to update status" });
+  }
+};
+
+// DELETE: Delete a contact message submission (Admin Only)
+export const deleteContactMessage = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const message = await ContactMessage.findByIdAndDelete(req.params.id);
+    if (!message) {
+      return res.status(404).json({ success: false, message: "Message not found" });
+    }
+    res.status(200).json({ success: true, message: "Message deleted successfully!" });
+  } catch (error) {
+    console.error("Error deleting contact message:", error);
+    res.status(500).json({ success: false, message: "Failed to delete message" });
+  }
 };

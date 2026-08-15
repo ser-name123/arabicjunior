@@ -1,6 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   CallingIcon,
   EmailIcon,
@@ -10,12 +12,64 @@ import {
   LocationIcon,
   YouTubeIcon,
 } from "./SvgIcons";
-import { images } from "@/constants/images";
 
 const Footer = () => {
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchFooterSettings = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/footer-settings`);
+        const result = await res.json();
+        if (res.ok && result.data) {
+          setSettings(result.data);
+        }
+      } catch (err) {
+        console.error("Error loading footer settings:", err);
+      }
+    };
+    fetchFooterSettings();
+  }, []);
+
+  const description = settings?.description || "Learn Arabic online with expert UAE syllabus tutors, offering affordable one-to-one and group classes in conversational and Modern Standard Arabic.";
+  const facebook = settings?.facebook || "https://www.facebook.com/arabicjuniors";
+  const linkedin = settings?.linkedin || "https://www.linkedin.com/company/arabicjuniors";
+  const youtube = settings?.youtube || "https://www.youtube.com/@ArabicJuniors";
+  const instagram = settings?.instagram || "https://www.instagram.com/arabicjunior/";
+  
+  const phone = settings?.phone || "+971 50 534 4645";
+  const phoneLink = settings?.phoneLink || "https://wa.me/971505344645?text=Hello!%20I'm%20interested%20in%20enrolling%20in%20Arabic%20tuition%20classes.%20Please%20get%20in%20touch%20with%20me.";
+  const email = settings?.email || "hello@arabicjuniors.com";
+  const location = settings?.location || "Dubai - United Arab Emirates";
+  
+  const copyright = settings?.copyright || "©2026 www.arabicjuniors.com | All Rights Reserved by The Learning Hub FZE LLC";
+
+  const SOCIAL_DATA = [
+    {
+      key: "facebook",
+      icon: <FacebookIcon className="text-[#1877F2]" />,
+      link: facebook,
+    },
+    {
+      key: "linkedin",
+      icon: <LinkedinIcon className="text-[#2867B2]" />,
+      link: linkedin,
+    },
+    {
+      key: "youtube",
+      icon: <YouTubeIcon className="text-[#FF0000]" />,
+      link: youtube,
+    },
+    {
+      key: "instagram",
+      icon: <InstagramIcon className="text-[#F00073]" />,
+      link: instagram,
+    },
+  ];
+
   return (
     <React.Fragment>
-      <footer aria-label="main-footer" className="pt-12 bg-[#F5F5F5]">
+      <footer aria-label="main-footer" className="pt-12 bg-[#F5F5F5] font-sans">
         <div className="container">
           <div
             aria-label="footer-wrapper"
@@ -32,14 +86,12 @@ const Footer = () => {
                 />
               </Link>
               <p className="text-neutral-700 font-normal text-base lg:mb-16">
-                Learn Arabic online with expert UAE syllabus tutors, offering
-                affordable one-to-one and group classes in conversational and
-                Modern Standard Arabic.
+                {description}
               </p>
 
               <div
                 aria-label="social-connect-wrapper"
-                className="hidden lg:block"
+                className="hidden lg:block mt-6"
               >
                 <h4 className="text-lg font-bold text-neutral-800 mb-4">
                   Connect with us
@@ -49,11 +101,11 @@ const Footer = () => {
                   aria-label="social-lists"
                   className="flex items-center gap-x-2"
                 >
-                  {SOCIAL_DATA?.map((social) => (
+                  {SOCIAL_DATA.map((social) => (
                     <li
                       key={social.key}
                       aria-label="social-item"
-                      className="text-2xl"
+                      className="text-2xl hover:scale-110 transition-transform"
                     >
                       <Link href={social.link} target="_blank">{social.icon}</Link>
                     </li>
@@ -136,25 +188,9 @@ const Footer = () => {
             </div>
 
             <div aria-label="help-center-column">
-              {/* <Link
-                href={
-                  "https://wa.me/971505344645?text=Hello!%20I'm%20interested%20in%20enrolling%20in%20Arabic%20tuition%20classes.%20Please%20get%20in%20touch%20with%20me."
-                }
-                aria-describedby="whatsapp-image"
-                className="w-full flex justify-center items-center scale-95 transition-transform ease-in-out duration-300 hover:scale-105"
-              >
-                <Image
-                  src={images.imgWhatsAppNumber}
-                  width={4096}
-                  height={1215}
-                  alt="arabic juniors whatsapp number"
-                  priority
-                />
-              </Link> */}
-
               <div
                 aria-label="help-center-wrapper"
-                className="bg-white rounded-2xl py-5 px-7"
+                className="bg-white rounded-2xl py-5 px-7 border border-[#F1F5F9] shadow-[0px_4px_20px_rgba(0,0,0,0.02)]"
               >
                 <h5 className="text-3xl text-neutral-800 font-bold mb-7">
                   HELP CENTER
@@ -166,31 +202,35 @@ const Footer = () => {
                 >
                   <li aria-label="contact-item">
                     <Link
-                      href="tel:+971 50 534 4645"
-                      className="flex items-center gap-x-3 text-lg font-normal text-neutral-800 max-w-max transition-all ease-in-out duration-300 hover:opacity-75"
+                      href={phoneLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-x-3 text-lg font-normal text-neutral-800 max-w-max transition-all ease-in-out duration-300 hover:text-orange-500"
                     >
                       <CallingIcon className="text-orange-500 text-2xl" />
-                      +971 50 534 4645
+                      {phone}
                     </Link>
                   </li>
 
                   <li aria-label="contact-item">
                     <Link
-                      href="mailto:hello@ArabicJuniors.com"
-                      className="flex items-center gap-x-3 text-lg font-normal text-neutral-800 max-w-max transition-all ease-in-out duration-300 hover:opacity-75"
+                      href={`mailto:${email}`}
+                      className="flex items-center gap-x-3 text-lg font-normal text-neutral-800 max-w-max transition-all ease-in-out duration-300 hover:text-orange-500"
                     >
                       <EmailIcon className="text-orange-500 text-2xl" />
-                      hello@arabicjuniors.com
+                      {email}
                     </Link>
                   </li>
 
                   <li aria-label="contact-item">
                     <Link
                       href="https://maps.app.goo.gl/hAwg2jjYZ3guPmau9"
-                      className="flex items-center gap-x-3 text-lg font-normal text-neutral-800 max-w-max transition-all ease-in-out duration-300 hover:opacity-75"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-x-3 text-lg font-normal text-neutral-800 max-w-max transition-all ease-in-out duration-300 hover:text-orange-500"
                     >
                       <LocationIcon className="text-orange-500 text-2xl" />
-                      Dubai - United Arab Emirates
+                      {location}
                     </Link>
                   </li>
                 </ul>
@@ -205,7 +245,7 @@ const Footer = () => {
             </h4>
 
             <ul aria-label="social-lists" className="flex items-center gap-x-2">
-              {SOCIAL_DATA?.map((social) => (
+              {SOCIAL_DATA.map((social) => (
                 <li
                   key={social.key}
                   aria-label="social-item"
@@ -221,14 +261,10 @@ const Footer = () => {
 
           <div
             aria-label="footer-copyright"
-            className="pt-4 pb-5 border-t border-t-neutral-200 flex items-center gap-x-4 sm:gap-x-7 justify-between"
+            className="pt-4 pb-5 border-t border-t-neutral-200 flex flex-col sm:flex-row items-center gap-y-3 justify-between text-center sm:text-left"
           >
-            <p className="text-neutral-700 text-xs sm:text-base font-normal">
-              ©{new Date().getFullYear()}{" "}
-              <Link href={"/"} className="underline text-blue-500">
-                www.arabicjuniors.com
-              </Link>{" "}
-              | All Rights Reserved by The Learning Hub FZE LLC
+            <p className="text-neutral-700 text-xs sm:text-sm font-normal">
+              {copyright}
             </p>
 
             <ul
@@ -238,7 +274,7 @@ const Footer = () => {
               <li>
                 <Link
                   href="/terms-and-conditions"
-                  className="text-neutral-700 text-xs sm:text-base font-normal transition-colors ease-in-out duration-300 hover:text-orange-500"
+                  className="text-neutral-700 text-xs sm:text-sm font-normal transition-colors ease-in-out duration-300 hover:text-orange-500"
                 >
                   Terms & Conditions
                 </Link>
@@ -247,7 +283,7 @@ const Footer = () => {
               <li>
                 <Link
                   href="/privacy-policy"
-                  className="text-neutral-700 text-xs sm:text-base font-normal transition-colors ease-in-out duration-300 hover:text-orange-500"
+                  className="text-neutral-700 text-xs sm:text-sm font-normal transition-colors ease-in-out duration-300 hover:text-orange-500"
                 >
                   Privacy Policy
                 </Link>
@@ -261,51 +297,3 @@ const Footer = () => {
 };
 
 export default Footer;
-
-const SOCIAL_DATA = [
-  {
-    key: "facebook",
-    icon: <FacebookIcon className="text-[#1877F2]" />,
-    link: "https://www.facebook.com/arabicjuniors",
-  },
-  {
-    key: "linkedin",
-    icon: <LinkedinIcon className="text-[#2867B2]" />,
-    link: "https://www.linkedin.com/company/arabicjuniors",
-  },
-  {
-    key: "youtube",
-    icon: <YouTubeIcon className="text-[#FF0000]" />,
-    link: "https://www.youtube.com/@ArabicJuniors",
-  },
-  {
-    key: "instagram",
-    icon: <InstagramIcon className="text-[#F00073]" />,
-    link: "https://www.instagram.com/arabicjunior/",
-  },
-  // {
-  //   key: "pinterest",
-  //   icon: <PinterestIcon className="text-[#E60023]" />,
-  //   link: "#",
-  // },
-  // {
-  //   key: "whatsapp",
-  //   icon: <WhatsAppIcon className="text-[#25D366]" />,
-  //   link: "#",
-  // },
-  // {
-  //   key: "telegram",
-  //   icon: <TelegramIcon className="text-[#0088CC]" />,
-  //   link: "#",
-  // },
-  // {
-  //   key: "twitter-x",
-  //   icon: <TwitterXIcon className="text-black" />,
-  //   link: "#",
-  // },
-  // {
-  //   key: "tiktok",
-  //   icon: <TikTokIcon className="text-black" />,
-  //   link: "#",
-  // },
-];

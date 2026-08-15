@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import BlogCard from "./BlogCard";
+import Reveal from "../Reveal";
 
 
 
@@ -38,9 +39,9 @@ const BlogSection = () => {
       >
         <div className="container">
           <div>
-            <h3 className="text-4xl sm:text-5xl font-bold text-neutral-800 text-center mb-10">
+            <Reveal as="h3" variant="up" className="text-4xl sm:text-5xl font-bold text-neutral-800 text-center mb-10">
               Read our <span className="text-orange-500">Blog</span>
-            </h3>
+            </Reveal>
 
             <div
               aria-label="blog-home-card-wrapper"
@@ -49,17 +50,18 @@ const BlogSection = () => {
               <BlogCard CardData={latestBlogs} />
             </div>
 
-            <div
+            <Reveal
+              variant="up"
               aria-label="all-blog-button"
               className="flex items-center justify-center flex-col"
             >
-              <Button asChild className="md:text-base max-w-60 w-full">
+              <Button asChild className="md:text-base max-w-60 w-full hover-shine">
                 <Link href="/blogs">
                   See all blog
                   <ArrowUpRight className="w-4 h-4" />
                 </Link>
               </Button>
-            </div>
+            </Reveal>
           </div>
         </div>
       </section>

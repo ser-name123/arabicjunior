@@ -1,20 +1,56 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import React from "react";
-import { JobCardDataTypes } from "../types";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
-interface JobCardProps {
-  jobCardData?: JobCardDataTypes[];
-}
+const JobCard = () => {
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const JobCard: React.FC<JobCardProps> = ({ jobCardData = JOB_CARD_DATA }) => {
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs`);
+        const result = await res.json();
+        if (res.ok && result.data) {
+          setJobs(result.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch jobs:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="col-span-full flex flex-col items-center justify-center py-10">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+        <p className="text-neutral-500 text-sm mt-2">Loading job openings...</p>
+      </div>
+    );
+  }
+
+  if (jobs.length === 0) {
+    return (
+      <div className="col-span-full text-center py-10 text-neutral-500">
+        No job openings at the moment. Please check back later!
+      </div>
+    );
+  }
+
   return (
     <React.Fragment>
-      {jobCardData.map((job, index) => (
+      {jobs.map((job, index) => (
         <div
-          key={index}
+          key={job._id || index}
           aria-label="job-card"
           className="bg-[#F5F6F8] w-full p-7 pb-3 rounded-xl min-h-72 flex h-full items-start justify-between flex-col transition-colors ease-in-out duration-300 group hover:cursor-pointer hover:bg-gradient-to-r hover:from-[#FF60A8] hover:from-5% hover:via-[#FB6238] hover:via-50% hover:to-[#F5AE14] hover:to-100%"
         >
@@ -26,7 +62,7 @@ const JobCard: React.FC<JobCardProps> = ({ jobCardData = JOB_CARD_DATA }) => {
               aria-label="job-title"
               className="text-2xl font-semibold text-neutral-800 mb-4 group-hover:text-white transition-colors ease-in-out duration-300"
             >
-              {job.jobTitle}
+              {job.title}
             </h4>
 
             <div
@@ -66,7 +102,7 @@ const JobCard: React.FC<JobCardProps> = ({ jobCardData = JOB_CARD_DATA }) => {
               asChild
               className="w-full rounded-xl bg-transparent group-hover:bg-white group-hover:border-white group-hover:text-neutral-800"
             >
-              <Link href={job.action.url}>{job.action.btnText}</Link>
+              <Link href={`/careers/${job.slug}`}>{job.applyLabel || "Apply Now"}</Link>
             </Button>
           </div>
         </div>
@@ -76,40 +112,3 @@ const JobCard: React.FC<JobCardProps> = ({ jobCardData = JOB_CARD_DATA }) => {
 };
 
 export default JobCard;
-
-// default data
-const JOB_CARD_DATA: JobCardDataTypes[] = [
-  {
-    department: "Management",
-    jobTitle: "Academic Support Assistant",
-    jobLocation: "Online",
-    employmentType: "Permanent",
-    jobType: "3 years exp.",
-    action: {
-      btnText: "Apply Now",
-      url: "/careers/academic-support-assistant",
-    },
-  },
-  {
-    department: "Management",
-    jobTitle: "Academic Head",
-    jobLocation: "Online",
-    employmentType: "Permanent",
-    jobType: "2-4 Years Exp.",
-    action: {
-      btnText: "Apply Now",
-      url: "/careers/academic-head",
-    },
-  },
-  {
-    department: "Management",
-    jobTitle: "Arabic Teacher",
-    jobLocation: "Online",
-    employmentType: "Permanent",
-    jobType: "2-3 Years UAE Exp.",
-    action: {
-      btnText: "Apply Now",
-      url: "/careers/academic-teacher",
-    },
-  },
-];

@@ -1,8 +1,46 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import { IconCalling, IconEmail, IconLocation, IconWhatsApp } from "./svgIcons";
 import Link from "next/link";
 
 const ContactInfo = () => {
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/contact/settings`);
+        const result = await res.json();
+        if (res.ok && result.data) {
+          setSettings(result.data);
+        }
+      } catch (err) {
+        console.error("Error loading contact info settings:", err);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const email = settings?.contactEmail || "hello@ArabicJuniors.com";
+  const location = settings?.contactLocation || "United Arab Emirates";
+  const phone = settings?.contactPhone || "+971 50 992 1470";
+  const whatsApp = settings?.contactWhatsApp || "+971 50 534 4645";
+  const whatsAppLink = settings?.contactWhatsAppLink || "https://wa.me/971505344645?text=Hello!%20I%27m%20interested%20in%20enrolling%20in%20Arabic%20tuition%20classes.%20Please%20get%20in%20touch%20with%20me";
+
+  const CONTACT_LISTS = [
+    {
+      key: "email",
+      icon: <IconEmail className="text-2xl text-orange-500" />,
+      label: email,
+    },
+    {
+      key: "location",
+      icon: <IconLocation className="text-2xl text-orange-500" />,
+      label: location,
+    },
+  ];
+
   return (
     <React.Fragment>
       <div aria-label="contact-info-wrapper" className="lg:order-1 flex-shrink-0 flex-grow-0 basis-auto">
@@ -26,7 +64,7 @@ const ContactInfo = () => {
                 >
                   {contact.icon}
                 </span>
-                <span className="text-lg font-semibold text-neutral-800 flex-1">
+                <span className="text-lg font-semibold text-[#0F172A] flex-1 select-all">
                   {contact.label}
                 </span>
               </li>
@@ -35,27 +73,21 @@ const ContactInfo = () => {
         </ul>
 
         <div aria-label="additional-info" className="space-y-6">
-          {/* <p className="text-lg font-semibold text-neutral-800 flex gap-x-1">
-            <span>Contact 👉</span>
-            <Link href="#" className="text-[#0062FC]">
-              Arabic Juniors
-            </Link>
-          </p> */}
-
-          <Link href={'https://wa.me/971505344645?text=Hello!%20I%27m%20interested%20in%20enrolling%20in%20Arabic%20tuition%20classes.%20Please%20get%20in%20touch%20with%20me'} className="flex items-start gap-x-3 w-full">
-            <span className="flex flex-grow-0 flex-shrink-0 basis-auto">
-              <IconCalling className="text-4xl" />
+          <Link href={`tel:${phone.replace(/\s+/g, "")}`} className="flex items-center gap-x-3 w-full group">
+            <span className="flex flex-grow-0 flex-shrink-0 basis-auto text-orange-500 group-hover:scale-105 transition-transform">
+              <IconCalling className="text-4xl text-orange-500" />
             </span>
-            <span className="text-2xl font-bold text-neutral-900">
-              +971 50 992 1470
+            <span className="text-2xl font-bold text-neutral-900 group-hover:text-orange-500 transition-colors select-all">
+              {phone}
             </span>
           </Link>
-          <Link href={'https://wa.me/971505344645?text=Hello!%20I%27m%20interested%20in%20enrolling%20in%20Arabic%20tuition%20classes.%20Please%20get%20in%20touch%20with%20me'} className="flex items-start gap-x-3 w-full">
-            <span className="flex flex-grow-0 flex-shrink-0 basis-auto">
-              <IconWhatsApp className="text-4xl" />
+          
+          <Link href={whatsAppLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-x-3 w-full group">
+            <span className="flex flex-grow-0 flex-shrink-0 basis-auto text-green-500 group-hover:scale-105 transition-transform">
+              <IconWhatsApp className="text-4xl text-[#25D366]" />
             </span>
-            <span className="text-2xl font-bold text-neutral-900">
-              +971 50 534 4645
+            <span className="text-2xl font-bold text-neutral-900 group-hover:text-green-600 transition-colors select-all">
+              {whatsApp}
             </span>
           </Link>
         </div>
@@ -65,21 +97,3 @@ const ContactInfo = () => {
 };
 
 export default ContactInfo;
-
-const CONTACT_LISTS = [
-  // {
-  //   key: "phone",
-  //   icon: <IconCalling className="text-2xl text-orange-500" />,
-  //   label: "+971 50 992 1470",
-  // },
-  {
-    key: "email",
-    icon: <IconEmail className="text-2xl text-orange-500" />,
-    label: "hello@ArabicJuniors.com",
-  },
-  {
-    key: "location",
-    icon: <IconLocation className="text-2xl text-orange-500" />,
-    label: "United Arab Emirates",
-  },
-];

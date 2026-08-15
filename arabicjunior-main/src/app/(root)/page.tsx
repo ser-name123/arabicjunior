@@ -4,9 +4,13 @@ import {
   DeliverResult,
   FaqSection,
   HomeHero,
+  Marquee,
+  AcademyStats,
   StudentReviews,
+  SchoolLogosMarquee,
   StudentStrugglingBanner,
   TeachersSlider,
+  TrialSectionBanner,
 } from "@/components/homepage";
 
 import React from "react";
@@ -68,13 +72,22 @@ import React from "react";
 const HomePage = async () => {
   return (
     <React.Fragment>
+      {/* Sections animate their own parts — heading, then cards staggered —
+          rather than each being wrapped in a single fading block. Fading a
+          whole section at once hides the internal stagger and makes a tall
+          section pop in as one slab. The two marquees already move on their
+          own, so they are left alone. */}
       <HomeHero />
+      <Marquee />
+      <AcademyStats />
       <ArabicCurriculumn />
       <StudentStrugglingBanner />
+      <TrialSectionBanner />
       <TeachersSlider />
       <DeliverResult />
-      <BlogSection />
       <StudentReviews />
+      <SchoolLogosMarquee />
+      <BlogSection />
       <FaqSection />
     </React.Fragment>
   );

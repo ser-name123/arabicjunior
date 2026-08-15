@@ -4,6 +4,7 @@ import {
   getAllTrialUsers,
   getTrialUsers,
   updateTrialUserAttended,
+  deleteTrialUser,
 } from "../controllers/userRegistrationController";
 
 const router = express.Router();
@@ -18,5 +19,6 @@ const router = express.Router();
 router.get("/trial-users", authenticateAdmin, getTrialUsers);
 router.get("/trial-users/all", authenticateAdmin, getAllTrialUsers);
 router.patch("/trial-users/:id/attendance", authenticateAdmin, updateTrialUserAttended);
+router.delete("/trial-users/:id", authenticateAdmin, deleteTrialUser);
 
 export default router;

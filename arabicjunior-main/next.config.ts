@@ -2,7 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "res.cloudinary.com" }],
+    remotePatterns: [
+      { protocol: "https", hostname: "res.cloudinary.com" },
+      // Poster frames for testimonials whose video is a pasted YouTube link.
+      { protocol: "https", hostname: "i.ytimg.com" },
+      { protocol: "https", hostname: "img.youtube.com" },
+    ],
   },
   // Re-enabled: lint was switched off "temporarily" during an earlier security
   // patch, which then suppressed everything added since — including a

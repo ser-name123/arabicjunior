@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
+import AnimateObserver from "@/components/AnimateObserver";
 
 const interSans = Inter({
   variable: "--inter-sans",
@@ -67,11 +68,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       {/* Browser extensions inject attributes onto <body> before React hydrates,
           which React reports as a mismatch. This suppresses that for the element's
           own attributes only — mismatches inside the tree are still reported. */}
       <body className={`${interSans.variable} antialiased`} suppressHydrationWarning>
+        {/* Marks the document as "JavaScript is running", which is what unlocks
+            the scroll-reveal styles. Every hidden state in globals.css is
+            nested under `html.js-anim`, so if this never executes — JS off, a
+            blocked bundle, a hydration crash — the page renders fully visible
+            instead of blank. It sits inline at the top of <body> so it runs
+            before the content below is painted; no flash of hidden content. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `document.documentElement.classList.add('js-anim')`,
+          }}
+        />
+
         {/* --- Facebook Pixel --- */}
         <Script id="facebook-pixel" strategy="afterInteractive">
           {`
@@ -146,6 +159,7 @@ export default function RootLayout({
           `}
         </Script>
         {/* <ClientWrapper /> */}
+        <AnimateObserver />
         <main>{children}</main>
         <Toaster duration={10000} />
       </body>

@@ -171,3 +171,27 @@ export const updateTrialUserAttended = async (req: Request, res: Response): Prom
     });
   }
 };
+
+export const deleteTrialUser = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const user = await User.findByIdAndDelete(id);
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "Trial user not found",
+      });
+    }
+    res.status(200).json({
+      status: "success",
+      message: "Trial user deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting trial user:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to delete trial user",
+      error,
+    });
+  }
+};

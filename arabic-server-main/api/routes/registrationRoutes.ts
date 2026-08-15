@@ -1,10 +1,15 @@
 import express from "express";
 
 import { registerUser } from "../controllers/userRegistrationController";
-import { teacherRegistration } from "../controllers/teacherRegistrationController";
+import {
+  teacherRegistration,
+  getTeacherRegistrations,
+  deleteTeacherRegistration,
+} from "../controllers/teacherRegistrationController";
 import studentRegistration, {
   getRegisteredStudents,
   getAllRegisteredStudents,
+  deleteRegisteredStudent,
 } from "../controllers/studentRegistrationController";
 import { authenticateAdmin } from "../middleware/authMiddleware";
 import { teacherDocsUpload, handleUploadErrors } from "../config/upload";
@@ -27,5 +32,8 @@ router.post("/student-registration", studentRegistration);
 // Admin
 router.get("/registered-students", authenticateAdmin, getRegisteredStudents);
 router.get("/registered-students/all", authenticateAdmin, getAllRegisteredStudents);
+router.delete("/registered-students/:id", authenticateAdmin, deleteRegisteredStudent);
+router.get("/admin/teacher-registrations", authenticateAdmin, getTeacherRegistrations);
+router.delete("/admin/teacher-registrations/:id", authenticateAdmin, deleteTeacherRegistration);
 
 export default router;

@@ -1,10 +1,12 @@
 "use client"
 import { Button } from '@/components/ui/button-2';
+import { Input } from '@/components/ui/input-2';
 import useAuthAdmin from '@/hooks/useAuthAdmin';
-import { KeyIcon, KeyRoundIcon, LockKeyhole, LockKeyholeOpen, Settings, X } from 'lucide-react'
+import { KeyIcon, KeyRoundIcon, LockKeyhole, LockKeyholeOpen, Settings, X, Trash2, Plus, Users2 } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner';
 import PasswordResetForm from '../components/PasswordResetForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const SettingsPage = () => {
     const [user, setUser] = React.useState<any>(null);
@@ -15,6 +17,14 @@ const SettingsPage = () => {
     const [showQR, setShowQR] = useState(false);
     const [qrImage, setQrImage] = useState<string | null>(null);
     const [secret, setSecret] = useState<string | null>(null);
+
+    // Admins management state
+    const [adminsList, setAdminsList] = useState<any[]>([]);
+    const [loadingAdmins, setLoadingAdmins] = useState(false);
+    const [showAddAdmin, setShowAddAdmin] = useState(false);
+    const [newAdminEmail, setNewAdminEmail] = useState("");
+    const [newAdminPassword, setNewAdminPassword] = useState("");
+    const [submittingAdmin, setSubmittingAdmin] = useState(false);
 
     const adminId =
         user?.adminId ??
@@ -28,6 +38,90 @@ const SettingsPage = () => {
         user?.isTwoFactorEnabled ??
         user?.twoFactorEnabled ??
         false;
+
+    const fetchAdmins = async () => {
+        if (!token) return;
+        setLoadingAdmins(true);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/users`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAdminsList(data);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoadingAdmins(false);
+        }
+    };
+
+    const handleAddAdmin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newAdminEmail || !newAdminPassword || !token) return;
+        if (newAdminPassword.length < 12) {
+            toast.error("Password must be at least 12 characters");
+            return;
+        }
+        setSubmittingAdmin(true);
+        toast.loading("Adding administrator...", { id: "add-admin" });
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/signup`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ email: newAdminEmail, password: newAdminPassword }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err?.message || "Failed to add administrator");
+            }
+            toast.success("Administrator added successfully!", { id: "add-admin" });
+            setNewAdminEmail("");
+            setNewAdminPassword("");
+            setShowAddAdmin(false);
+            fetchAdmins();
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.message || "Failed to add admin", { id: "add-admin" });
+        } finally {
+            setSubmittingAdmin(false);
+        }
+    };
+
+    const handleDeleteAdmin = async (targetId: string) => {
+        if (!token) return;
+        if (confirm("Are you sure you want to delete this administrator?")) {
+            toast.loading("Deleting administrator...", { id: "delete-admin" });
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/users/${targetId}`, {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err?.message || "Failed to delete administrator");
+                }
+                toast.success("Administrator deleted!", { id: "delete-admin" });
+                fetchAdmins();
+            } catch (error: any) {
+                console.error(error);
+                toast.error(error.message || "Failed to delete admin", { id: "delete-admin" });
+            }
+        }
+    };
+
+    useEffect(() => {
+        if (token) {
+            fetchAdmins();
+        }
+    }, [token]);
 
     const enable2FA = async () => {
         setIsLoading(true);
@@ -238,6 +332,124 @@ const SettingsPage = () => {
                         <PasswordResetForm />
                     </div>
                 </div>
+
+                {/* Manage Administrators Card */}
+                <div className="mt-8 bg-white dark:bg-secondary/30 border rounded-2xl p-6 space-y-6">
+                    <div className="flex justify-between items-center border-b pb-4">
+                        <div>
+                            <h3 className="text-lg font-semibold flex items-center gap-2 text-black">
+                                <Users2 size={20} className="text-orange-500" />
+                                Manage Administrators
+                            </h3>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Add additional administrative accounts or delete inactive accounts.
+                            </p>
+                        </div>
+                        <Button size="sm" onClick={() => setShowAddAdmin(true)} className="h-9 gap-2">
+                            <Plus size={16} /> Add Administrator
+                        </Button>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-neutral-500">
+                            <thead className="text-xs text-neutral-700 uppercase bg-neutral-50">
+                                <tr>
+                                    <th className="px-6 py-3">Email Address</th>
+                                    <th className="px-6 py-3">2FA Enabled</th>
+                                    <th className="px-6 py-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {adminsList.map((admin: any) => {
+                                    const isSelf = admin._id === adminId;
+                                    return (
+                                        <tr key={admin._id} className="bg-white border-b hover:bg-neutral-50">
+                                            <td className="px-6 py-4 font-semibold text-neutral-900 flex items-center gap-2">
+                                                {admin.email}
+                                                {isSelf && (
+                                                    <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 text-[10px] font-bold">
+                                                        You
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${admin.isTwoFactorEnabled ? 'bg-green-100 text-green-800' : 'bg-neutral-100 text-neutral-800'}`}>
+                                                    {admin.isTwoFactorEnabled ? 'Enabled' : 'Disabled'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                {!isSelf && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleDeleteAdmin(admin._id)}
+                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </Button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Add Admin Dialog */}
+                <Dialog open={showAddAdmin} onOpenChange={setShowAddAdmin}>
+                    <DialogContent className="max-w-md bg-white text-black p-6 rounded-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Add Additional Administrator</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleAddAdmin} className="space-y-4 pt-2">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-neutral-700">Email Address</label>
+                                <Input
+                                    type="email"
+                                    required
+                                    placeholder="admin@arabicjuniors.com"
+                                    value={newAdminEmail}
+                                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                                    className="w-full text-sm h-10 py-2 px-3 border rounded-lg focus-within:border-pink-400 text-black"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-neutral-700">Password</label>
+                                <Input
+                                    type="password"
+                                    required
+                                    placeholder="At least 12 characters"
+                                    value={newAdminPassword}
+                                    onChange={(e) => setNewAdminPassword(e.target.value)}
+                                    className="w-full text-sm h-10 py-2 px-3 border rounded-lg focus-within:border-pink-400 text-black"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-4">
+                                <Button
+                                    variant="outline"
+                                    type="button"
+                                    onClick={() => {
+                                        setShowAddAdmin(false);
+                                        setNewAdminEmail("");
+                                        setNewAdminPassword("");
+                                    }}
+                                    className="text-black border"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={submittingAdmin}
+                                    className="bg-gradient-to-r from-[#FF60A8] to-[#FB6238] text-white font-semibold"
+                                >
+                                    Add Admin
+                                </Button>
+                            </div>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </div>
         </React.Fragment>
     )

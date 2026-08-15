@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { BlogImage2, BlogImage3, BlogImage4, LearningWithGameBlog } from "@/assets";
 import { IBlog } from "@/app/(root)/blogs/data/blogs";
+import Reveal from "../Reveal";
 
 interface BlogCardProps {
   CardData?: IBlog[];
@@ -14,11 +15,14 @@ interface BlogCardProps {
 const BlogCard: React.FC<BlogCardProps> = ({ CardData = [] }: BlogCardProps) => {
   return (
     <React.Fragment>
-      {CardData?.map((cardItem) => (
-        <div
+      {CardData?.map((cardItem, cardIndex) => (
+        <Reveal
           key={cardItem.slug}
+          variant="rise"
+          index={cardIndex % 4}
+          step={100}
           aria-label="blog-card"
-          className="h-full flex flex-col border border-transparent rounded-2xl bg-[#F5F5F5] transition-all ease-in-out duration-300 hover:border-neutral-100"
+          className="h-full flex flex-col border border-transparent rounded-2xl bg-[#F5F5F5] overflow-hidden hover:border-neutral-100 hover-lift hover-zoom"
         >
           <div
             aria-label="blog-image-wrapper"
@@ -59,7 +63,7 @@ const BlogCard: React.FC<BlogCardProps> = ({ CardData = [] }: BlogCardProps) => 
               </Link>
             </Button>
           </div>
-        </div>
+        </Reveal>
       ))}
     </React.Fragment>
   );

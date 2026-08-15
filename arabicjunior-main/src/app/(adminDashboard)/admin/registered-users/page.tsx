@@ -14,6 +14,7 @@ import { DateRange } from "react-day-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar-2"
+import { toast } from "sonner"
 
 type User = {
     _id: string
@@ -53,6 +54,8 @@ export default function UsersPage() {
     const [pageSize, setPageSize] = useState(10)
     const [selectedUser, setSelectedUser] = useState<User | null>(null)
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+    const [deletingUser, setDeletingUser] = useState<User | null>(null)
+    const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
 
     // ⏳ Debounce search input
     useEffect(() => {
@@ -64,45 +67,70 @@ export default function UsersPage() {
         return () => clearTimeout(handler)
     }, [search])
 
+    const fetchData = async () => {
+        setLoading(true)
+        console.log(token)
+        try {
+            const params = new URLSearchParams({
+                search: debouncedSearch,
+                page: currentPage.toString(),
+                limit: pageSize.toString(),
+            })
+            if (dateRange?.from) params.append("startDate", dateRange?.from.toISOString())
+            if (dateRange?.to) params.append("endDate", dateRange?.to.toISOString())
+            const res = await fetch(
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/registered-students?${params.toString()}`,
+                {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            )
+            if (!res.ok) throw new Error("Failed to fetch data")
+
+            const json = await res.json()
+            const data: any[] = json.data
+            setData(data ?? [])
+            setTotalPages(json.pagination?.totalPages || 1)
+        } catch (err) {
+            console.error("Error fetching Users:", err)
+            setData([])
+        } finally {
+            setTimeout(() => setLoading(false), 500)
+        }
+    }
+
     // 📡 Fetch API whenever debounced search or page changes
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true)
-            console.log(token)
-            try {
-                const params = new URLSearchParams({
-                    search: debouncedSearch,
-                    page: currentPage.toString(),
-                    limit: pageSize.toString(),
-                })
-                if (dateRange?.from) params.append("startDate", dateRange?.from.toISOString())
-                if (dateRange?.to) params.append("endDate", dateRange?.to.toISOString())
-                const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_BASE_URL}/registered-students?${params.toString()}`,
-                    {
-                        method: "GET",
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                            "Content-Type": "application/json",
-                        },
-                    }
-                )
-                if (!res.ok) throw new Error("Failed to fetch data")
-
-                const json = await res.json()
-                const data: any[] = json.data
-                setData(data ?? [])
-                setTotalPages(json.pagination?.totalPages || 1)
-            } catch (err) {
-                console.error("Error fetching Users:", err)
-                setData([])
-            } finally {
-                setTimeout(() => setLoading(false), 500)
-            }
-        }
-
         if (token) fetchData()
     }, [debouncedSearch, currentPage, pageSize, dateRange, token]) // ✅ use debouncedSearch, not raw search
+
+    const handleDeleteUser = async () => {
+        if (!deletingUser || !token) return
+        toast.loading("Deleting registered student...", { id: "student-delete" })
+        try {
+            const res = await fetch(
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/registered-students/${deletingUser._id}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            )
+            if (!res.ok) throw new Error("Failed to delete student")
+            toast.success("Registered student deleted successfully!", { id: "student-delete" })
+            setOpenDeleteDialog(false)
+            setDeletingUser(null)
+            fetchData()
+        } catch (error) {
+            console.error(error)
+            toast.error("Failed to delete student", { id: "student-delete" })
+        }
+    }
 
     const handleExport = async () => {
         try {
@@ -242,14 +270,13 @@ export default function UsersPage() {
                     setCurrentPage(1) // reset page when page size changes
                 }}
                 showActions={true} // ✅ enable actions
-                actions={['view']}
+                actions={['view', 'delete']}
                 onAction={(type, row) => {
                     if (type === "view") {
                         setSelectedUser(row as User)
-                    } else if (type === "edit") {
-                        console.log("Edit user:", row)
                     } else if (type === "delete") {
-                        console.log("Delete user:", row)
+                        setDeletingUser(row as User)
+                        setOpenDeleteDialog(true)
                     }
                 }}
             />
@@ -344,6 +371,42 @@ export default function UsersPage() {
                         </section>
                     </div>
 
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
+                <DialogContent className="max-w-md bg-white text-black p-6 rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Delete Registered Student</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <p className="text-sm text-neutral-500">
+                            Are you sure you want to delete the registration for{" "}
+                            <strong>
+                                {deletingUser?.first_name} {deletingUser?.last_name}
+                            </strong>
+                            ? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setOpenDeleteDialog(false)
+                                    setDeletingUser(null)
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleDeleteUser}
+                                className="bg-red-600 text-white hover:bg-red-700"
+                            >
+                                Delete
+                            </Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

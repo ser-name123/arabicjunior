@@ -13,6 +13,7 @@ import React from "react";
 import { Button } from "../ui/button";
 import { ArrowRightIcon } from "./svgIcons";
 import Link from "next/link";
+import Reveal from "../Reveal";
 
 const HomeHero = () => {
   return (
@@ -26,7 +27,14 @@ const HomeHero = () => {
             aria-label="home-hero-wrapper"
             className="max-w-[910px] mx-auto flex flex-col items-center justify-center relative z-10"
           >
-            <h1 className="text-4xl gap-y-1 sm:gap-y-2 sm:text-5xl md:text-7xl font-bold text-neutral-800 text-center flex items-center flex-wrap justify-center gap-x-5 mb-14">
+            {/* The hero is above the fold, so its parts are given explicit
+                delays and come in as a short sequence: headline, supporting
+                line, then the call to action. */}
+            <Reveal
+              as="h1"
+              variant="rise"
+              className="text-4xl gap-y-1 sm:gap-y-2 sm:text-5xl md:text-7xl font-bold text-neutral-800 text-center flex items-center flex-wrap justify-center gap-x-5 mb-14"
+            >
               <span>Online</span>
               <Image
                 src={
@@ -60,28 +68,35 @@ const HomeHero = () => {
                 priority
                 className="w-12 sm:w-20 md:w-32"
               />{" "}
-            </h1>
+            </Reveal>
 
-            <p className="text-neutral-700 text-base sm:text-lg md:text-2xl font-normal max-w-screen-md mx-auto text-center mb-12">
-              Arabic Made Easy with our Arabic Tuition Online, Fun and Interactive lessons to support your child's learning journey!
-            </p>
+            <Reveal
+              as="p"
+              variant="up"
+              delay={140}
+              className="text-neutral-700 text-base sm:text-lg md:text-2xl font-normal max-w-screen-md mx-auto text-center mb-12"
+            >
+              Arabic Made Easy with our Arabic Tuition Online, Fun and Interactive lessons to support your child&apos;s learning journey!
+            </Reveal>
 
-            <div
+            <Reveal
+              variant="up"
+              delay={260}
               aria-label="home-hero-button-wrapper"
               className="flex items-center justify-center gap-x-5 w-full"
             >
-              <Button asChild className="w-full sm:max-w-max">
+              <Button asChild className="w-full sm:max-w-max hover-shine">
                 <Link href="/register">
                   Get started
                   <ArrowRightIcon className="text-xl text-white" />
                 </Link>
               </Button>
-            </div>
+            </Reveal>
 
             {/* Floating elements */}
             <span
               aria-label="al-arabia"
-              className="absolute -right-[20%] top-0 -z-10 hidden md:block"
+              className="absolute -right-[20%] top-0 -z-10 hidden md:block animate-float-slow"
             >
               <Image
                 src={AlArabia}
@@ -93,7 +108,8 @@ const HomeHero = () => {
             </span>
             <span
               aria-label="vector-dir-right"
-              className="absolute -right-[8%] top-[30%] -z-10 hidden md:block"
+              className="absolute -right-[8%] top-[30%] -z-10 hidden md:block animate-float-slow"
+              style={{ animationDelay: '0.4s' }}
             >
               <Image
                 src={VectorDirectionRight}
@@ -114,12 +130,14 @@ const HomeHero = () => {
                 width={109}
                 height={109}
                 priority
+                className="animate-spin-slow"
               />
             </span>
 
             <span
               aria-label="arabic-letter-khaap"
-              className="absolute -left-[5%] top-[32%] -z-10 hidden md:block"
+              className="absolute -left-[5%] top-[32%] -z-10 hidden md:block animate-float-slow"
+              style={{ animationDelay: '1s' }}
             >
               <Image
                 src={ArabicKhaap}
@@ -132,7 +150,8 @@ const HomeHero = () => {
 
             <span
               aria-label="vector-direction-left"
-              className="absolute -left-[17%] top-[18%] -z-10 hidden md:block"
+              className="absolute -left-[17%] top-[18%] -z-10 hidden md:block animate-float-slow"
+              style={{ animationDelay: '1.2s' }}
             >
               <Image
                 src={VectorDirectionLeft}
@@ -145,7 +164,8 @@ const HomeHero = () => {
 
             <span
               aria-label="arabic-lang"
-              className="absolute -left-[18%] bottom-[5%] -z-10 hidden md:block"
+              className="absolute -left-[18%] bottom-[5%] -z-10 hidden md:block animate-float-slow"
+              style={{ animationDelay: '2s' }}
             >
               <Image
                 src={Ahlaa}

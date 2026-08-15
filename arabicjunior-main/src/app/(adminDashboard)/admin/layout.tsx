@@ -26,13 +26,13 @@ const AdminDashboardLayout = async ({
             <DesktopSidebar />
             {/* </div> */}
 
-            <div className="flex flex-col flex-1 min-h-screen overflow-x-hidden">
+            <div className="flex flex-col flex-1 min-h-screen min-w-0 bg-[#FAFAFA]">
               <AdminHeader />
 
               <Separator />
 
-              <div className="flex-1 overflow-x-hidden relative">
-                <div className="p-4 md:container space-y-4 py-4 text-accent-foreground max-w-full">
+              <div className="flex-1 min-w-0 overflow-y-auto relative">
+                <div className="p-6 md:p-8 space-y-6 text-accent-foreground w-full max-w-[1440px] mx-auto">
                   {children}
                 </div>
               </div>

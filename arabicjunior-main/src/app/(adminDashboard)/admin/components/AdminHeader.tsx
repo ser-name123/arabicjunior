@@ -42,7 +42,7 @@ const AdminHeader = () => {
 
   return (
     <React.Fragment>
-      <header className="flex items-center justify-between px-6 py-3 container">
+      <header className="flex items-center justify-between px-6 py-3 w-full max-w-full bg-white">
         <div>
           <MobileSidebar />
         </div>

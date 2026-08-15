@@ -6,6 +6,7 @@ import {
   adminProfile,
   adminSignup,
   adminUsers,
+  deleteAdmin,
   disable2FA,
   enable2FA,
   reset2FA,
@@ -17,6 +18,7 @@ const router = express.Router();
 
 // ALL ADMIN ---- GET
 router.get("/users", authenticateAdmin, adminUsers);
+router.delete("/users/:id", authenticateAdmin, deleteAdmin);
 
 // ADMIN PROFILE
 router.get("/profile", authenticateAdmin, adminProfile);

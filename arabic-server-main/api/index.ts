@@ -17,6 +17,16 @@ import newsletterRoutes from "./routes/newsletterRoutes";
 import contactRoutes from "./routes/contactRoutes";
 import insightRoutes from "./routes/insightRoutes";
 import blogRoutes from "./routes/blogRoutes";
+import testimonialRoutes from "./routes/testimonialRoutes";
+import teacherRoutes from "./routes/teacherRoutes";
+import pricingRoutes from "./routes/pricingRoutes";
+import schoolLogoRoutes from "./routes/schoolLogoRoutes";
+import academyStatsRoutes from "./routes/academyStatsRoutes";
+import jobRoutes from "./routes/jobRoutes";
+import chatbotRoutes from "./routes/chatbotRoutes";
+import trialLandingRoutes from "./routes/trialLandingRoutes";
+import homepageTrialRoutes from "./routes/homepageTrialRoutes";
+import footerSettingsRoutes from "./routes/footerSettingsRoutes";
 
 // Init the app
 const app = express();
@@ -149,6 +159,16 @@ connectDB()
     app.use("/contact", contactRoutes);
     app.use("/insights", insightRoutes);
     app.use("/", blogRoutes);
+    app.use("/", testimonialRoutes);
+    app.use("/", teacherRoutes);
+    app.use("/", pricingRoutes);
+    app.use("/", schoolLogoRoutes);
+    app.use("/", academyStatsRoutes);
+    app.use("/", jobRoutes);
+    app.use("/", chatbotRoutes);
+    app.use("/", trialLandingRoutes);
+    app.use("/", homepageTrialRoutes);
+    app.use("/footer-settings", footerSettingsRoutes);
     app.use("/health-check", (req, res) => {
       res.status(200).json({
         message: `Hi, Welcome to Arabic Juiniors Backend Server.!`,

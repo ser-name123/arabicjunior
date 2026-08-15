@@ -9,6 +9,7 @@ import {
 } from "./svgIcons";
 import { Button } from "../ui/button";
 import Link from "next/link";
+import Reveal from "../Reveal";
 
 const PROGRAMS_LIST = [
   {
@@ -42,16 +43,17 @@ const DeliverResult = () => {
       >
         <div className="container">
           <div aria-label="deliver-content">
-            <h3 className="text-3xl leading-tight sm:text-5xl sm:leading-tight font-bold text-neutral-950 text-center mb-11">
+            <Reveal as="h3" variant="up" className="text-3xl leading-tight sm:text-5xl sm:leading-tight font-bold text-neutral-950 text-center mb-11">
               Programs designed to{" "}
               <span className="text-orange-500">Deliver Results</span>
-            </h3>
+            </Reveal>
 
             <div
               aria-label="deliver-result-wrapper"
               className="flex items-center gap-x-14 flex-col gap-y-9 lg:flex-row"
             >
-              <div
+              <Reveal
+                variant="left"
                 aria-label="deliver-left-column"
                 className="max-w-80 xl:max-w-[34rem] mx-auto lg:mr-auto"
               >
@@ -62,15 +64,19 @@ const DeliverResult = () => {
                   alt="deliver result in juniors"
                   priority
                 />
-              </div>
+              </Reveal>
 
               <div aria-label="deliver-right-column" className="flex-1">
                 <ul aria-label="result-lists" className="flex flex-col gap-y-5">
                   {PROGRAMS_LIST?.map((program, index) => (
-                    <li
+                    <Reveal
+                      as="li"
                       key={index}
+                      variant="right"
+                      index={index}
+                      step={90}
                       aria-label="result-item"
-                      className="bg-white p-4 rounded-2xl border border-neutral-100 flex items-center gap-x-9 transition-shadow ease-in-out duration-300"
+                      className="bg-white p-4 rounded-2xl border border-neutral-100 flex items-center gap-x-9 hover-lift"
                     >
                       <span
                         aria-label="icon-wrapper"
@@ -86,19 +92,20 @@ const DeliverResult = () => {
                           {program.short_description}
                         </p>
                       </div>
-                    </li>
+                    </Reveal>
                   ))}
                 </ul>
-                <div
+                <Reveal
+                  variant="up"
                   aria-label="home-curriculam-button-wrapper"
                   className="flex items-center justify-center gap-x-5 w-full pt-8"
                 >
-                  <Button asChild className="w-full sm:max-w-max">
+                  <Button asChild className="w-full sm:max-w-max hover-shine">
                     <Link href="/register">
                       Join Now
                     </Link>
                   </Button>
-                </div>
+                </Reveal>
               </div>
 
             </div>

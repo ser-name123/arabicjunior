@@ -1,81 +1,18 @@
-'use client';
 import React from "react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "../ui/carousel";
-import {
-  FirstTeacherHome,
-  FourthTeacherHome,
-  SecondTeacherHome,
-  ThirdTeacherHome,
-} from "@/assets";
-import Image from "next/image";
-import Autoplay from "embla-carousel-autoplay";
-import { Button } from "../ui/button";
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
-const TEACHERS_LIST = [
-  {
-    name: "Rafat Sayed",
-    profession: "Arabic Teacher",
-    image: {
-      link: FirstTeacherHome,
-      width: 256,
-      height: 256,
-    },
-  },
-  {
-    name: "Mohommad Taha",
-    profession: "Arabic Teacher",
-    image: {
-      link: SecondTeacherHome,
-      width: 256,
-      height: 256,
-    },
-  },
-  {
-    name: "Eptehal Elgendy",
-    profession: "Arabic Teacher",
-    image: {
-      link: ThirdTeacherHome,
-      width: 256,
-      height: 256,
-    },
-  },
-  {
-    name: "Hassan Ibrahim",
-    profession: "Arabic Teacher",
-    image: {
-      link: FourthTeacherHome,
-      width: 256,
-      height: 256,
-    },
-  },
-  {
-    name: "Rawan Hossam",
-    profession: "Arabic Teacher",
-    image: {
-      link: FirstTeacherHome,
-      width: 256,
-      height: 256,
-    },
-  },
-  {
-    name: "Narmeen Saeed",
-    profession: "Arabic Teacher",
-    image: {
-      link: ThirdTeacherHome,
-      width: 256,
-      height: 256,
-    },
-  },
-];
+import { Button } from "../ui/button";
+import { fetchContent } from "@/lib/contentApi";
+import type { Teacher } from "@/types/Teacher";
+import TeachersSliderCarousel from "./TeachersSliderCarousel";
+import Reveal from "../Reveal";
 
-const TeachersSlider = () => {
+const TeachersSlider = async () => {
+  // The homepage shows a highlight reel, not the full roster — which teachers
+  // appear here is a per-teacher switch in the admin screen.
+  const teachers = await fetchContent<Teacher>("/teachers?homepage=true");
+
   return (
     <React.Fragment>
       <section
@@ -84,59 +21,42 @@ const TeachersSlider = () => {
       >
         <div className="container">
           <div aria-label="teachers-slider-wrapper">
-            <h3 className="text-white text-4xl leading-tight sm:text-6xl sm:leading-tight font-bold text-center mb-14">
+            <Reveal as="h3" variant="up" className="text-white text-4xl leading-tight sm:text-6xl sm:leading-tight font-bold text-center mb-14">
               UAE Experienced Teachers
-            </h3>
+            </Reveal>
 
-            <Carousel
-              opts={{ align: "start", loop: true }}
-              plugins={[Autoplay({ delay: 2000 })]}
-              className="w-full max-w-[680px] mx-auto"
-            >
-              <CarouselContent>
-                {TEACHERS_LIST?.map((teacher, index) => (
-                  <CarouselItem
-                    key={index}
-                    className="basis-full md:basis-1/2 lg:basis-1/4"
-                  >
-                    <div className="flex flex-col items-center justify-center">
-                      <div
-                        aria-label="teacher-image-wrapper"
-                        className="max-w-32 mb-6"
-                      >
-                        <Image
-                          src={teacher.image.link}
-                          width={teacher.image.width}
-                          height={teacher.image.height}
-                          alt="first teacher home"
-                          priority
-                        />
-                      </div>
-                      <h4 className="text-lg font-semibold text-white text-center mb-1">
-                        {teacher.name}
-                      </h4>
-                      <p className="text-sm font-normal text-white/95 text-center">
-                        {teacher.profession}
-                      </p>
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
-            </Carousel>
+            {teachers.length > 0 && (
+              <Reveal variant="scale" delay={120}>
+                <TeachersSliderCarousel teachers={teachers} />
+              </Reveal>
+            )}
           </div>
 
-          <div
+          <Reveal
+            variant="up"
             aria-label="home-curriculam-button-wrapper"
-            className="flex items-center justify-center gap-x-5 w-full pt-12"
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-x-5 w-full pt-12"
           >
-            <Button asChild className="w-full sm:max-w-max bg-white text-orange-500 hover:bg-white">
-              <Link href="/register">
-                Meet a Tutor
+            <Button
+              asChild
+              className="w-full sm:max-w-max bg-white text-orange-500 hover:bg-white hover-shine"
+            >
+              <Link href="/register">Meet a Tutor</Link>
+            </Button>
+
+            {/* The slider only carries the teachers flagged for the homepage,
+                so there is always more to see on the full roster page. */}
+            <Button
+              asChild
+              variant="outline"
+              className="w-full sm:max-w-max bg-transparent border-white text-white hover:bg-white hover:text-orange-500"
+            >
+              <Link href="/our-teachers">
+                View All Teachers
+                <ArrowUpRight className="w-4 h-4" />
               </Link>
             </Button>
-          </div>
+          </Reveal>
         </div>
       </section>
     </React.Fragment>

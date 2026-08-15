@@ -33,7 +33,11 @@ const HeaderNav: React.FC<HeaderNavProps> = ({
           <li aria-describedby="header-nav-item" className={`relative flex group/nav-item ${!isMobile ? 'before:absolute before:w-[1px] before:h-full before:z-10 before:bg-neutral-200 before:-right-4 before:top-1/2 before:-translate-y-1/2 before:last:w-0' : ''}`}>
             {item.subMenu ? (
               <React.Fragment>
-                <button aria-describedby="submenu-trigger" className="flex items-center gap-x-1 text-neutral-600 text-base font-semibold relative transition-all ease-in-out duration-300  group-hover/nav-item:text-orange-500">
+                <button 
+                  suppressHydrationWarning
+                  aria-describedby="submenu-trigger" 
+                  className="flex items-center gap-x-1 text-neutral-600 text-base font-semibold relative transition-all ease-in-out duration-300  group-hover/nav-item:text-orange-500"
+                >
                   {item.label} <ChevronDown className="flex flex-shrink-0 flex-grow-0 basis-auto transition-all ease-in-out duration-300 group-hover/nav-item:-rotate-180 group-hover/nav-item:text-orange-500" />
                 </button>
 

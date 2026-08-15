@@ -373,7 +373,7 @@ const TeacherMultiStepForm = () => {
       console.log(info);
       toast.success(info?.message || "Something wrong!");
       setIsLoading(false);
-      router.push("/");
+      router.push("/teacher-registration/thank-you");
     } catch (error) {
       console.log("Teacher registration failed", error);
     }

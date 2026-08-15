@@ -215,7 +215,7 @@ const payload = {
         },
       });
       // redirect to welcome page after successful
-      router.push("/welcome");
+      router.push("/register/thank-you");
     } catch (error) {
       // toast notification
       toast.error("Something went wrong! Sorry for that.", {

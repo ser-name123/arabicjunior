@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 body {
   height: 100%;
   font-family: var(--inter-sans), sans-serif;
@@ -215,4 +220,262 @@ body {
   border-radius: 5px;
   display: inline-block;
   margin-top: 30px;
+}
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-scroll {
+  animation: marquee-scroll 35s linear infinite;
+}
+
+.animate-marquee-scroll:hover {
+  animation-play-state: paused;
+}
+
+/* ==========================================================================
+   Entrance reveal & scroll animations
+   ==========================================================================
+
+   Three rules govern this whole system:
+
+   1. Nothing is hidden unless JavaScript is running. Every hidden state is
+      nested under `html.js-anim`, a class set by an inline script in the
+      layout before first paint. If that script never runs — JS disabled, a
+      hydration crash, an ad blocker breaking a bundle — the page renders in
+      its finished state instead of a wall of invisible content. The previous
+      version set `opacity: 0` unconditionally, so any JS failure blanked the
+      site.
+
+   2. Motion is opt-out. `prefers-reduced-motion: reduce` drops every reveal,
+      float and spin to its end state. Vestibular disorders make large drifting
+      movement genuinely unpleasant, and this site's audience is parents.
+
+   3. Stagger is data, not markup. Each element carries `--d` (its delay), so a
+      grid of cards is one loop with an index rather than a stack of
+      hand-tuned classes.
+   -------------------------------------------------------------------------- */
+
+:root {
+  /* Fast out, slow in — motion decelerates as it arrives, which reads as
+     settling into place rather than stopping dead. */
+  --ease-reveal: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-reveal: 0.7s;
+}
+
+.js-anim [data-reveal] {
+  opacity: 0;
+  transition:
+    opacity var(--dur-reveal) var(--ease-reveal) var(--d, 0ms),
+    transform var(--dur-reveal) var(--ease-reveal) var(--d, 0ms),
+    filter var(--dur-reveal) var(--ease-reveal) var(--d, 0ms);
+  /* Promote only while the animation is pending; released on .is-visible so a
+     long page does not hold dozens of composited layers. */
+  will-change: opacity, transform;
+}
+
+.js-anim [data-reveal="up"]      { transform: translate3d(0, 28px, 0); }
+.js-anim [data-reveal="down"]    { transform: translate3d(0, -28px, 0); }
+.js-anim [data-reveal="left"]    { transform: translate3d(-32px, 0, 0); }
+.js-anim [data-reveal="right"]   { transform: translate3d(32px, 0, 0); }
+.js-anim [data-reveal="fade"]    { transform: none; }
+.js-anim [data-reveal="scale"]   { transform: scale(0.94); }
+.js-anim [data-reveal="rise"]    { transform: translate3d(0, 40px, 0) scale(0.97); }
+/* For headline images and cards — a touch of blur makes the arrival feel like
+   it is coming into focus rather than sliding on a track. */
+.js-anim [data-reveal="focus"]   { transform: translate3d(0, 18px, 0); filter: blur(6px); }
+
+.js-anim [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  will-change: auto;
+}
+
+/* Legacy class-based variants, kept so any markup still using them works.
+   Prefer the data-reveal attributes above. */
+.js-anim .reveal-fade-in,
+.js-anim .reveal-slide-up,
+.js-anim .reveal-slide-left,
+.js-anim .reveal-slide-right,
+.js-anim .reveal-scale-up {
+  opacity: 0;
+  transition:
+    opacity var(--dur-reveal) var(--ease-reveal) var(--d, 0ms),
+    transform var(--dur-reveal) var(--ease-reveal) var(--d, 0ms);
+}
+.js-anim .reveal-slide-up    { transform: translate3d(0, 28px, 0); }
+.js-anim .reveal-slide-left  { transform: translate3d(-28px, 0, 0); }
+.js-anim .reveal-slide-right { transform: translate3d(28px, 0, 0); }
+.js-anim .reveal-scale-up    { transform: scale(0.96); }
+
+.js-anim .reveal-fade-in.active,
+.js-anim .reveal-slide-up.active,
+.js-anim .reveal-slide-left.active,
+.js-anim .reveal-slide-right.active,
+.js-anim .reveal-scale-up.active {
+  opacity: 1;
+  transform: none;
+}
+
+/* --- Micro-interactions -------------------------------------------------- */
+
+/* Cards: lift and deepen the shadow. Transform and box-shadow only, so this
+   never triggers layout. */
+.hover-lift {
+  transition: transform 0.35s var(--ease-reveal), box-shadow 0.35s var(--ease-reveal);
+}
+@media (hover: hover) {
+  .hover-lift:hover {
+    transform: translate3d(0, -6px, 0);
+    box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.18);
+  }
+}
+
+/* Images inside a card: scale the picture, not the card. The parent needs
+   `overflow-hidden`. */
+.hover-zoom img,
+img.hover-zoom {
+  transition: transform 0.6s var(--ease-reveal);
+}
+@media (hover: hover) {
+  .hover-zoom:hover img,
+  img.hover-zoom:hover {
+    transform: scale(1.06);
+  }
+}
+
+/* Buttons: a light sweep across the face on hover. */
+.hover-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.hover-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgb(255 255 255 / 0.35) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .hover-shine:hover::after {
+    transform: translateX(120%);
+    transition: transform 0.75s var(--ease-reveal);
+  }
+}
+
+/* An underline that grows from the left — for nav and inline links. */
+.hover-underline {
+  position: relative;
+}
+.hover-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  height: 2px;
+  width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s var(--ease-reveal);
+}
+@media (hover: hover) {
+  .hover-underline:hover::after {
+    transform: scaleX(1);
+  }
+}
+
+/* --- Reduced motion ------------------------------------------------------
+   Everything lands in its final state instantly. Opacity is still animated
+   very briefly so content does not pop, which is the one form of motion the
+   preference is not asking to remove. */
+@media (prefers-reduced-motion: reduce) {
+  .js-anim [data-reveal],
+  .js-anim .reveal-fade-in,
+  .js-anim .reveal-slide-up,
+  .js-anim .reveal-slide-left,
+  .js-anim .reveal-slide-right,
+  .js-anim .reveal-scale-up {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+
+  .hover-lift,
+  .hover-zoom img,
+  img.hover-zoom,
+  .hover-shine::after,
+  .hover-underline::after {
+    transition: none;
+  }
+  .hover-lift:hover {
+    transform: none;
+  }
+  .hover-zoom:hover img,
+  img.hover-zoom:hover {
+    transform: none;
+  }
+
+  .animate-marquee-scroll,
+  .animate-spin-slow,
+  .animate-float-slow {
+    animation: none;
+  }
+}
+
+/* --- Custom Theme Scrollbar --- */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #FF60A8 0%, #FB6238 100%);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FB6238;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 4s ease-in-out infinite;
 }

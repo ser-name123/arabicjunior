@@ -10,6 +10,7 @@ import {
 import { Button } from "../ui/button";
 import Link from "next/link";
 import { ArrowRightIcon, Plus, Minus, BookOpenCheck, DollarSign } from "lucide-react";
+import Reveal from "../Reveal";
 
 const ArabicCurriculumn = () => {
   const [expandedItems, setExpandedItems] = useState<number[]>([]);
@@ -60,7 +61,8 @@ const ArabicCurriculumn = () => {
             aria-label="arabic-curricolumn-wrapper"
             className="flex items-center gap-x-16 flex-col gap-y-10 lg:flex-row"
           >
-            <div
+            <Reveal
+              variant="left"
               aria-label="arabic-curricolumn-left"
               className="max-w-[26.75rem] xl:max-w-[30rem] mx-auto lg:mx-0 flex-shrink-0"
             >
@@ -70,31 +72,35 @@ const ArabicCurriculumn = () => {
                 height={1220}
                 priority
                 alt="Experience in UAE School Arabic Curriculum"
-                className="w-full h-auto"
+                className="w-full h-auto transition-transform duration-700 ease-out hover:scale-105 hover:rotate-1"
               />
-            </div>
+            </Reveal>
 
             <div aria-label="arabic-curricolumn-right" className="flex-1 min-w-0">
-              <h3 className="text-neutral-900 text-3xl sm:text-4xl xl:text-5xl font-bold leading-tight mb-6">
+              <Reveal as="h3" variant="up" className="text-neutral-900 text-3xl sm:text-4xl xl:text-5xl font-bold leading-tight mb-6">
                 Experience in UAE School{" "}
                 <span className="text-orange-500">Arabic Curriculum</span>
-              </h3>
+              </Reveal>
 
-              <p className="text-neutral-700 font-normal text-base sm:text-lg xl:text-xl mb-8">
+              <Reveal as="p" variant="up" delay={100} className="text-neutral-700 font-normal text-base sm:text-lg xl:text-xl mb-8">
                 Arabic Juniors provides expert online Arabic tuition in Dubai and
                 across the UAE. Our online Arabic classes in the UAE support school
-                curricula while building strong reading, writing, and speaking skills.  
-              </p>
+                curricula while building strong reading, writing, and speaking skills.
+              </Reveal>
 
               <ul
                 aria-label="arabic-curricolumn-lists"
                 className="flex flex-col gap-y-4 mb-12"
               >
                 {curriculumItems.map((item, index) => (
-                  <li
+                  <Reveal
+                    as="li"
                     key={index}
+                    variant="up"
+                    index={index}
+                    step={90}
                     aria-label="curricolumn-list-item"
-                    className="bg-white p-5 xl:p-6 rounded-2xl border border-neutral-100 transition-shadow ease-in-out duration-300 hover:shadow-md"
+                    className="bg-white p-5 xl:p-6 rounded-2xl border border-neutral-100 hover-lift"
                   >
                     <div
                       className="flex items-center gap-x-6 xl:gap-x-8 cursor-pointer"
@@ -127,21 +133,22 @@ const ArabicCurriculumn = () => {
                         </p>
                       </div>
                     )}
-                  </li>
+                  </Reveal>
                 ))}
               </ul>
 
-              <div
+              <Reveal
+                variant="up"
                 aria-label="home-curriculam-button-wrapper"
                 className="flex items-center justify-center gap-x-5 w-full"
               >
-                <Button asChild className="w-full sm:max-w-max text-base xl:text-lg px-6 xl:px-8 py-3 xl:py-4">
+                <Button asChild className="w-full sm:max-w-max text-base xl:text-lg px-6 xl:px-8 py-3 xl:py-4 hover-shine">
                   <Link href="/register">
                     Book Your Free Trial
                     <ArrowRightIcon className="text-xl xl:text-2xl text-white ml-2" />
                   </Link>
                 </Button>
-              </div>
+              </Reveal>
             </div>
           </div>
         </div>

@@ -104,6 +104,8 @@ export default function TrialUsersPage() {
     const [pageSize, setPageSize] = useState(10)
     const [selectedUser, setSelectedUser] = useState<User | null>(null)
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+    const [deletingUser, setDeletingUser] = useState<User | null>(null)
+    const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
 
     const columns: ColumnDef<User>[] = [
         { accessorKey: "firstName", header: "Firstname" },
@@ -172,6 +174,31 @@ export default function TrialUsersPage() {
     useEffect(() => {
         if (token) fetchData()
     }, [debouncedSearch, currentPage, pageSize, dateRange, token, _attended]) // ✅ use debouncedSearch, not raw search
+
+    const handleDeleteUser = async () => {
+        if (!deletingUser || !token) return
+        toast.loading("Deleting trial user...", { id: "trial-delete" })
+        try {
+            const res = await fetch(
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/trial-users/${deletingUser._id}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            )
+            if (!res.ok) throw new Error("Failed to delete user")
+            toast.success("Trial user deleted successfully!", { id: "trial-delete" })
+            setOpenDeleteDialog(false)
+            setDeletingUser(null)
+            fetchData()
+        } catch (error) {
+            console.error(error)
+            toast.error("Failed to delete user", { id: "trial-delete" })
+        }
+    }
 
     const handleExport = async () => {
         try {
@@ -329,14 +356,13 @@ export default function TrialUsersPage() {
                     setCurrentPage(1) // reset page when page size changes
                 }}
                 showActions={true} // ✅ enable actions
-                actions={['view']}
+                actions={['view', 'delete']}
                 onAction={(type, row) => {
                     if (type === "view") {
                         setSelectedUser(row as User)
-                    } else if (type === "edit") {
-                        console.log("Edit user:", row)
                     } else if (type === "delete") {
-                        console.log("Delete user:", row)
+                        setDeletingUser(row as User)
+                        setOpenDeleteDialog(true)
                     }
                 }}
             />
@@ -417,6 +443,42 @@ export default function TrialUsersPage() {
                         </section>
                     </div>
 
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
+                <DialogContent className="max-w-md bg-white text-black p-6 rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Delete Trial User</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <p className="text-sm text-neutral-500">
+                            Are you sure you want to delete the trial registration for{" "}
+                            <strong>
+                                {deletingUser?.firstName} {deletingUser?.lastName}
+                            </strong>
+                            ? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setOpenDeleteDialog(false)
+                                    setDeletingUser(null)
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleDeleteUser}
+                                className="bg-red-600 text-white hover:bg-red-700"
+                            >
+                                Delete
+                            </Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

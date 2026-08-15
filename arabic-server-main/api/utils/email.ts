@@ -34,10 +34,11 @@ export const sendEmail = async ({
     return response.body as brevo.CreateSmtpEmail;
   } catch (error: unknown) {
     if (error instanceof brevo.HttpError) {
-      console.error('Brevo API error:', error.response);
+      console.error('Brevo API error (non-blocking):', error.response);
     } else {
-      console.error('Unexpected error sending email:', error);
+      console.error('Unexpected error sending email (non-blocking):', error);
     }
-    throw error;
+    // Return empty fallback instead of rethrowing to prevent 500 crashes on submit
+    return {} as brevo.CreateSmtpEmail;
   }
 };

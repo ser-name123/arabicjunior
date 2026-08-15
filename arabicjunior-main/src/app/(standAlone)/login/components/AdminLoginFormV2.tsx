@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Eye, EyeOff } from "lucide-react"
 import {
     Card,
     CardContent,
@@ -49,6 +50,7 @@ export function AdminLoginFormV2({
     const [tempToken, setTempToken] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
     const [code, setCode] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
 
     // 1. Define your form.
     const loginForm = useForm<z.infer<typeof loginFormSchema>>({
@@ -191,12 +193,25 @@ export function AdminLoginFormV2({
                                                             </Link>
                                                         </div>
                                                         <FormControl>
-                                                            <Input
-                                                                type="password"
-                                                                placeholder="Your Password"
-                                                                className="rounded-lg border placeholder:text-sm"
-                                                                {...field}
-                                                            />
+                                                            <div className="relative">
+                                                                <Input
+                                                                    type={showPassword ? "text" : "password"}
+                                                                    placeholder="Your Password"
+                                                                    className="rounded-lg border placeholder:text-sm pr-10"
+                                                                    {...field}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setShowPassword(!showPassword)}
+                                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors focus:outline-none"
+                                                                >
+                                                                    {showPassword ? (
+                                                                        <EyeOff className="h-4 w-4" />
+                                                                    ) : (
+                                                                        <Eye className="h-4 w-4" />
+                                                                    )}
+                                                                </button>
+                                                            </div>
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
@@ -211,12 +226,7 @@ export function AdminLoginFormV2({
                                                 </Button>
                                             </div>
                                         </div>
-                                        <div className="mt-4 text-center text-sm">
-                                            Don&apos;t have an account?{" "}
-                                            <Link href="#" className="underline text-sm underline-offset-4">
-                                                Sign up
-                                            </Link>
-                                        </div>
+                                        {/* Removed Sign up link */}
                                     </form>
                                 </Form>
                             )}

@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,30 +11,37 @@ import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { images } from "@/constants/images";
 import Image from "next/image";
-import { TeachersTypes } from "@/types";
+import type { Teacher } from "@/types/Teacher";
+import Reveal from "@/components/Reveal";
 
 interface TeacherCardProps {
-  teachersData: TeachersTypes[];
+  teachersData: Teacher[];
 }
 
 const TeacherCard: React.FC<TeacherCardProps> = ({ teachersData }) => {
+  const [visibleCount, setVisibleCount] = useState(6);
+  const displayed = teachersData.slice(0, visibleCount);
+
   return (
     <React.Fragment>
-      {teachersData.map((teacher) => (
-        <div
-          key={teacher.key}
+      {displayed.map((teacher, cardIndex) => (
+        <Reveal
+          key={teacher._id}
+          variant="rise"
+          index={cardIndex % 6}
+          step={90}
           aria-describedby="teacher-card"
-          className="bg-white rounded-2xl flex flex-col gap-y-4 items-center justify-center p-11 shadow-sm"
+          className="bg-white rounded-2xl flex flex-col gap-y-4 items-center justify-center p-11 shadow-sm hover-lift"
         >
           <div
             aria-describedby="image-wrapper"
             className="max-w-44 w-full rounded-full"
           >
             <Image
-              src={teacher.image.link}
-              width={teacher.image.width}
-              height={teacher.image.height}
-              alt={teacher.image.alt}
+              src={teacher.image}
+              width={256}
+              height={256}
+              alt={`${teacher.name} — Arabic Juniors teacher`}
               className="w-full rounded-full object-cover aspect-square"
             />
           </div>
@@ -45,7 +54,7 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ teachersData }) => {
               aria-describedby="teacher-name"
               className="text-2xl font-medium text-neutral-800 text-center"
             >
-              {teacher.teacherName}
+              {teacher.name}
             </h4>
             <p
               aria-describedby="profession"
@@ -78,10 +87,10 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ teachersData }) => {
                     className="max-w-44 w-full rounded-full "
                   >
                     <Image
-                      src={teacher.image.link}
-                      width={teacher.image.width}
-                      height={teacher.image.height}
-                      alt={teacher.image.alt}
+                      src={teacher.image}
+                      width={256}
+                      height={256}
+                      alt={`${teacher.name} — Arabic Juniors teacher`}
                       className="w-full rounded-full object-cover aspect-square"
                     />
                   </div>
@@ -96,45 +105,63 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ teachersData }) => {
                       aria-describedby="name"
                       className="text-3xl font-semibold text-white text-left mb-5"
                     >
-                      {teacher.teacherName}
+                      {teacher.name}
                     </h4>
 
                     <div
                       aria-describedby="lists"
                       className="grid grid-cols-2 items-center mb-6 max-w-max gap-x-7 gap-y-2"
                     >
-                      <p className="text-lg font-normal text-white">Grade:</p>
+                      {/* Rows for facts the admin has not filled in are left
+                          out rather than rendered with an empty value. */}
+                      {teacher.grade && (
+                        <>
+                          <p className="text-lg font-normal text-white">Grade:</p>
+                          <p className="text-lg font-normal text-white">
+                            {teacher.grade}
+                          </p>
+                        </>
+                      )}
 
-                      <p className="text-lg font-normal text-white">
-                        {teacher.detail.grade}
-                      </p>
+                      {teacher.experience && (
+                        <>
+                          <p className="text-lg font-normal text-white">
+                            Experience:
+                          </p>
+                          <p className="text-lg font-normal text-white">
+                            {teacher.experience}
+                          </p>
+                        </>
+                      )}
 
-                      <p className="text-lg font-normal text-white">
-                        Experience:
-                      </p>
+                      {teacher.education && (
+                        <>
+                          <p className="text-lg font-normal text-white">
+                            Education:
+                          </p>
+                          <p className="text-lg font-normal text-white">
+                            {teacher.education}
+                          </p>
+                        </>
+                      )}
 
-                      <p className="text-lg font-normal text-white">
-                        {teacher.detail.experience}
-                      </p>
-
-                      <p className="text-lg font-normal text-white">
-                        Education:
-                      </p>
-                      <p className="text-lg font-normal text-white">
-                        {teacher.detail.education}
-                      </p>
-
-                      <p className="text-lg font-normal text-white">Subject:</p>
-                      <p className="text-lg font-normal text-white">
-                        {teacher.detail.subject}
-                      </p>
+                      {teacher.subject && (
+                        <>
+                          <p className="text-lg font-normal text-white">
+                            Subject:
+                          </p>
+                          <p className="text-lg font-normal text-white">
+                            {teacher.subject}
+                          </p>
+                        </>
+                      )}
                     </div>
 
                     <p
                       aria-describedby="description"
                       className="text-sm font-normal text-white"
                     >
-                      {teacher.detail.shortDescription}
+                      {teacher.shortDescription}
                     </p>
                   </div>
 
@@ -148,17 +175,23 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ teachersData }) => {
                       className="flex items-center gap-x-2"
                     >
                       <p className="text-lg sm:text-2xl font-bold text-white">
-                        4.9
+                        {teacher.rating.toFixed(1)}
                       </p>
                       <div
                         aria-describedby="star-wrapper"
                         className="flex items-center gap-x-2"
                       >
-                        <Star className="w-4 sm:w-6 text-white fill-white" />
-                        <Star className="w-4 sm:w-6 text-white fill-white" />
-                        <Star className="w-4 sm:w-6 text-white fill-white" />
-                        <Star className="w-4 sm:w-6 text-white fill-white" />
-                        <Star className="w-4 sm:w-6 text-white fill-white" />
+                        {Array.from({ length: 5 }).map((_, index) => (
+                          <Star
+                            key={index}
+                            aria-hidden="true"
+                            className={
+                              index < Math.round(teacher.rating)
+                                ? "w-4 sm:w-6 text-white fill-white"
+                                : "w-4 sm:w-6 text-white/40"
+                            }
+                          />
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -193,8 +226,18 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ teachersData }) => {
               </span>
             </DialogContent>
           </Dialog>
-        </div>
+        </Reveal>
       ))}
+      {teachersData.length > visibleCount && (
+        <Reveal variant="up" className="col-span-full flex justify-center mt-8">
+          <Button
+            onClick={() => setVisibleCount(teachersData.length)}
+            className="rounded-full px-8 py-6 h-12 flex items-center justify-center bg-gradient-to-r from-[#FF60A8] to-[#FB6238] text-white hover:opacity-90 font-semibold shadow-md transition-all duration-300 hover:scale-[1.02]"
+          >
+            View All Teachers
+          </Button>
+        </Reveal>
+      )}
     </React.Fragment>
   );
 };

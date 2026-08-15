@@ -156,4 +156,28 @@ export const getAllRegisteredStudents = async (req: Request, res: Response) => {
   }
 };
 
+export const deleteRegisteredStudent = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const student = await StudentRegistration.findByIdAndDelete(id);
+    if (!student) {
+      return res.status(404).json({
+        status: "error",
+        message: "Registered student not found",
+      });
+    }
+    res.status(200).json({
+      status: "success",
+      message: "Registered student deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting registered student:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to delete registered student",
+      error,
+    });
+  }
+};
+
 export default studentRegistration;

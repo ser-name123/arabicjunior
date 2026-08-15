@@ -1,6 +1,5 @@
 import { Separator } from "@/components/ui/separator";
 import React from "react";
-import { JOB_POSTS } from "./data";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -12,23 +11,22 @@ type Props = {
 const CareerDetailsPage = async ({ params }: Props) => {
   const { slug } = await params;
 
-  const jobPost = JOB_POSTS.find((p) => p.slug === slug);
-  console.log(jobPost);
+  let jobPost = null;
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${slug}`, {
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const result = await res.json();
+      jobPost = result.data;
+    }
+  } catch (err) {
+    console.error("Error fetching job details:", err);
+  }
 
   if (!jobPost) {
     notFound();
   }
-
-  const {
-    title,
-    apply,
-    description,
-    experience,
-    location,
-    position_type,
-    responsibilities,
-    schedule,
-  } = jobPost;
 
   return (
     <React.Fragment>
@@ -47,21 +45,21 @@ const CareerDetailsPage = async ({ params }: Props) => {
                   aria-describedby="job-title"
                   className="text-5xl text-neutral-800 font-semibold mb-4"
                 >
-                  {title}
+                  {jobPost.title}
                 </h1>
 
-                <ul>
+                <ul className="text-black">
                   <li>
-                    <strong>Location:</strong> {location}
+                    <strong>Location:</strong> {jobPost.jobLocation}
                   </li>
                   <li>
-                    <strong>Position Type:</strong> {position_type}
+                    <strong>Position Type:</strong> {jobPost.employmentType}
                   </li>
                   <li>
-                    <strong>Schedule:</strong> {schedule}
+                    <strong>Schedule:</strong> {jobPost.schedule}
                   </li>
                   <li>
-                    <strong>Experience:</strong> {experience}
+                    <strong>Experience:</strong> {jobPost.experience}
                   </li>
                 </ul>
               </div>
@@ -74,52 +72,56 @@ const CareerDetailsPage = async ({ params }: Props) => {
                   Job Description
                 </h3>
                 <Separator className="my-4" />
-                <p>{description}</p>
+                <p className="text-black">{jobPost.description}</p>
                 <Separator className="my-4" />
               </div>
 
-              <div aria-describedby="job-details">
-                <h3
-                  aria-describedby="title"
-                  className="text-xl font-medium text-neutral-800 mb-2"
-                >
-                  Key Responsibilities:
-                </h3>
+              {jobPost.responsibilities && jobPost.responsibilities.length > 0 && (
+                <div aria-describedby="job-details">
+                  <h3
+                    aria-describedby="title"
+                    className="text-xl font-medium text-neutral-800 mb-4"
+                  >
+                    Job Details & Responsibilities:
+                  </h3>
 
-                <ol aria-describedby="topics" className="space-y-4">
-                  {responsibilities.map((resp, index) => (
-                    <li aria-describedby="topic-item" key={index}>
-                      {resp.category && (
-                        <h6 className="text-lg font-medium text-neutral-800 mb-2">
-                          {resp.category}:
-                        </h6>
-                      )}
+                  <ol aria-describedby="topics" className="space-y-6">
+                    {jobPost.responsibilities.map((resp: any, index: number) => (
+                      <li aria-describedby="topic-item" key={index} className="text-black">
+                        {resp.category && (
+                          <h6 className="text-lg font-medium text-neutral-850 mb-2">
+                            {resp.category}:
+                          </h6>
+                        )}
 
-                      <ul
-                        aria-describedby="lists"
-                        className="list-disc pl-8 space-y-1 text-base font-normal"
-                      >
-                        {resp.items.map((item, index) => (
-                          <li
-                            aria-describedby="list-item"
-                            key={index}
-                            className="text-sm"
-                          >
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </li>
-                  ))}
-                </ol>
-              </div>
+                        <ul
+                          aria-describedby="lists"
+                          className="list-disc pl-8 space-y-1.5 text-base font-normal text-neutral-700"
+                        >
+                          {resp.items.map((item: string, itemIdx: number) => (
+                            <li
+                              aria-describedby="list-item"
+                              key={itemIdx}
+                              className="text-sm text-neutral-600"
+                            >
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
 
               <div
                 aria-describedby="apply-btn"
                 className="mt-8 w-full flex items-center justify-center flex-col"
               >
                 <Button asChild>
-                  <Link href={apply.url}>{apply.label}</Link>
+                  <Link href={jobPost.applyUrl || "/teacher-registration"}>
+                    {jobPost.applyLabel || "Apply Now"}
+                  </Link>
                 </Button>
               </div>
             </div>
