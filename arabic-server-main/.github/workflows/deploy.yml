@@ -1,0 +1,38 @@
+name: Deploy Express App to Droplet
+
+on:
+  push:
+    branches:
+      - main # or your branch name
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH keys
+        run: |
+          eval "$(ssh-agent -s)"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DROPLET_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: SSH into server and deploy
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p 2895 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+           export NVM_DIR="$HOME/.nvm"
+           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+           export PATH=$PATH:/root/.local/share/pnpm
+           
+           cd ~/apps/arabic-juniors/backend
+           git pull origin main
+
+           pnpm install --frozen-lockfile
+           pnpm build
+
+          pm2 reload juniors-backend || pm2 start dist/index.js --name juniors-backend
+          EOF
