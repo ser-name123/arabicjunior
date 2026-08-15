@@ -1,0 +1,56 @@
+# Render Blueprint for the Arabic Juniors API.
+#
+# This repository is a monorepo, so rootDir points at the API package. The
+# frontend is deployed separately (Vercel) and is not described here.
+#
+# To use: Render Dashboard -> New + -> Blueprint -> pick this repository.
+# Values marked sync:false are NOT stored in git — Render prompts for them on
+# first deploy, and they can be edited later under the service's Environment
+# tab.
+services:
+  - type: web
+    name: arabic-juniors-api
+    runtime: node
+    plan: starter # free tier sleeps after 15 min idle; a cold start is ~50s
+    region: frankfurt # closest available region to the UAE audience
+    rootDir: arabic-server-main
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    # Excluded from the rate limiter in api/index.ts so probes don't consume
+    # the same budget as real traffic.
+    healthCheckPath: /health-check
+    autoDeploy: true
+    envVars:
+      # Render injects PORT itself — do not set it. The app reads
+      # process.env.PORT and falls back to 5000 locally.
+      - key: NODE_ENV
+        value: production # required: enables trust proxy and secure cookies
+
+      # The server exits at boot if either of these is missing.
+      - key: MONGODB_URI
+        sync: false # must include the /arabicjuniors database name
+      - key: JWT_SECRET
+        sync: false
+      - key: CLIENT_URL
+        sync: false # frontend origin(s), comma-separated
+
+      - key: SESSION_SECRET
+        sync: false
+
+      # Without a working Brevo key, registration saves the record and then
+      # fails on the confirmation email, returning a 500 to the visitor.
+      - key: BREVO_V1_API_KEY
+        sync: false
+      - key: BREVO_VERIFIED_SENDER_EMAIL
+        sync: false
+
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # Must be at least 64 characters or the 2FA reset endpoint refuses to run.
+      - key: MASTER_2FA_RESET_KEY
+        sync: false
