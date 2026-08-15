@@ -46,6 +46,11 @@ Thumbs.db
 .vercel
 *.pem
 
+# ---- Local-only pnpm config ----
+# These pin nodeLinker=hoisted because the dev checkout lives on an exFAT drive
+# with no symlink support. Production (ext4) must keep pnpm's default linker.
+pnpm-workspace.yaml
+
 # ---- Internal docs (not for a public repo) ----
 Arabic-Juniors-Handover-Audit.pdf
 *.pdf
