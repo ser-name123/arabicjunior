@@ -2,6 +2,24 @@ import { Request, Response } from "express";
 import Blog, { BlogCategory } from "../models/blog";
 import cloudinary from "../config/cloudinary";
 import slugify from "slugify"
+import { containsRegex } from "../utils/escapeRegex";
+
+// Turn a title into a slug that isn't already taken. createBlog previously
+// skipped this (updateBlog did it), so posting a second blog with the same
+// title tripped the unique index and returned a raw duplicate-key error.
+const buildUniqueSlug = async (title: string, excludeId?: unknown) => {
+    let baseSlug = slugify(title, { lower: true, strict: true, trim: true });
+    if (baseSlug.length > 70) baseSlug = baseSlug.substring(0, 70);
+    if (!baseSlug) baseSlug = "post";
+
+    let slug = baseSlug;
+    let counter = 1;
+    const scope = excludeId ? { _id: { $ne: excludeId } } : {};
+    while (await Blog.exists({ slug, ...scope })) {
+        slug = `${baseSlug}-${counter++}`;
+    }
+    return slug;
+};
 
 export interface BlogInput {
     title: string;
@@ -38,31 +56,40 @@ export const createBlog = async (req: Request, res: Response): Promise<any> => {
         };
 
 
-        if (files?.['cover-image']?.[0]) {
-            try {
-                uploadedImage = await uploadToCloudinary(files['cover-image'][0]);
-            } catch (err) {
-                return res.status(500).json({ success: false, message: "Image upload failed" });
-            }
+        if (!title || typeof title !== "string" || !title.trim()) {
+            return res.status(400).json({ success: false, message: "Title is required" });
         }
 
-        let baseSlug = slugify(title, { lower: true, strict: true, trim: true })
-        if (baseSlug.length > 70) baseSlug = baseSlug.substring(0, 70)
+        // The schema marks image and thumbnail as required, and both the blog
+        // list and the article page dereference imageDetails.link. Passing null
+        // through produced an opaque mongoose validation error; reject clearly
+        // instead.
+        if (!files?.['cover-image']?.[0]) {
+            return res.status(400).json({ success: false, message: "A cover image is required" });
+        }
+
+        try {
+            uploadedImage = await uploadToCloudinary(files['cover-image'][0]);
+        } catch (err) {
+            return res.status(500).json({ success: false, message: "Image upload failed" });
+        }
+
+        const slug = await buildUniqueSlug(title);
 
         const blog = await Blog.create({
             title,
             shortDescription,
             contentHtml,
             contentText,
-            slug: baseSlug,
+            slug,
             category,
             status,
-            image: uploadedImage?.secure_url || null,
-            thumbnail: uploadedImage?.secure_url || null,
+            image: uploadedImage.secure_url,
+            thumbnail: uploadedImage.secure_url,
             imageDetails: {
-                link: uploadedImage?.secure_url || null
+                link: uploadedImage.secure_url
             },
-            imagePublicId: uploadedImage?.public_id || null,
+            imagePublicId: uploadedImage.public_id,
         });
 
         res.status(201).json({ success: true, data: blog });
@@ -88,7 +115,7 @@ export const getBlogs = async (req: Request, res: Response) => {
         // Build search filter
         let filter: any = {};
         if (search && typeof search === "string" && search.trim() !== "") {
-            const regex = new RegExp(search, "i"); // case-insensitive
+            const regex = containsRegex(search); // case-insensitive, input escaped
             filter = {
                 $or: [
                     { title: regex },
@@ -139,7 +166,9 @@ export const getAllBlogs = async (req: Request, res: Response) => {
 // Get Single Blog by Slug
 export const getBlogBySlug = async (req: Request, res: Response): Promise<any> => {
     try {
-        const blog = await Blog.findOne({ slug: req.params.slug });
+        // Public route: only published posts. Without the status filter an
+        // unpublished draft was readable by anyone who knew or guessed its slug.
+        const blog = await Blog.findOne({ slug: req.params.slug, status: "published" });
         if (!blog) return res.status(404).json({ success: false, message: "Blog not found" });
 
         res.status(200).json({ success: true, data: blog });
@@ -184,17 +213,7 @@ export const updateBlog = async (req: Request, res: Response): Promise<any> => {
 
         if (title && title !== blog.title) {
             blog.title = title;
-
-            // generate new slug
-            let baseSlug = slugify(title, { lower: true, strict: true, trim: true });
-            if (baseSlug.length > 70) baseSlug = baseSlug.substring(0, 70);
-
-            let slug = baseSlug;
-            let counter = 1;
-            while (await Blog.exists({ slug, _id: { $ne: blog._id } })) {
-                slug = `${baseSlug}-${counter++}`;
-            }
-            blog.slug = slug;
+            blog.slug = await buildUniqueSlug(title, blog._id);
         }
 
         blog.shortDescription = shortDescription || blog.shortDescription;

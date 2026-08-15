@@ -34,8 +34,9 @@ const Top5Curriculams = () => {
                 }, 500)
             }
         }
+        if (!token) return
         fetchData()
-    }, [])
+    }, [token])
     return (
         <table className="w-full text-sm">
             <thead>

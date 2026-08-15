@@ -23,10 +23,10 @@ import { Input } from "../ui/input-2";
 export default function MenuBar({ editor }: { editor: Editor | null }) {
     const [color, setColor] = useState("#000000");
 
-    if (!editor) {
-        return null;
-    }
-
+    // Every hook must run before any early return. `useEditor` yields null on
+    // the first render and an Editor afterwards, so with `if (!editor) return`
+    // placed above this effect React saw one hook on the first render and two
+    // on the next — "rendered more hooks than during the previous render".
     useEffect(() => {
         if (!editor) return;
 
@@ -47,6 +47,11 @@ export default function MenuBar({ editor }: { editor: Editor | null }) {
             editor.off("transaction", updateColor);
         };
     }, [editor]);
+
+    if (!editor) {
+        return null;
+    }
+
     const addLink = () => {
         const previousUrl = editor.getAttributes("link").href;
         const url = window.prompt("Enter a URL", previousUrl);

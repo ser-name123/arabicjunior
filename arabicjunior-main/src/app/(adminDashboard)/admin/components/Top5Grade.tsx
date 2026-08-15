@@ -85,8 +85,9 @@ export function Top5Grade() {
             }
         }
 
+        if (!token) return
         fetchData()
-    }, [])
+    }, [token])
 
     return (
         <>

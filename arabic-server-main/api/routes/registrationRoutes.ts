@@ -1,19 +1,17 @@
 import express from "express";
-const router = express.Router();
-
-import multer from "multer";
-const storage = multer.memoryStorage(); // Store file in memory
-const upload = multer({ storage });
 
 import { registerUser } from "../controllers/userRegistrationController";
 import { teacherRegistration } from "../controllers/teacherRegistrationController";
-import studentRegistration, { getRegisteredStudents, getAllRegisteredStudents } from "../controllers/studentRegistrationController";
+import studentRegistration, {
+  getRegisteredStudents,
+  getAllRegisteredStudents,
+} from "../controllers/studentRegistrationController";
 import { authenticateAdmin } from "../middleware/authMiddleware";
+import { teacherDocsUpload, handleUploadErrors } from "../config/upload";
 
-router.post("/register", registerUser);
+const router = express.Router();
 
-
-const uploadMiddleware = upload.fields([
+const uploadMiddleware = teacherDocsUpload.fields([
   { name: "doc_1", maxCount: 1 },
   { name: "doc_2", maxCount: 1 },
   { name: "doc_3", maxCount: 1 },
@@ -21,9 +19,12 @@ const uploadMiddleware = upload.fields([
   { name: "personal_image", maxCount: 1 },
 ]);
 
-router.post("/teacher-registration", uploadMiddleware, teacherRegistration);
-
+// Public forms
+router.post("/register", registerUser);
+router.post("/teacher-registration", uploadMiddleware, handleUploadErrors, teacherRegistration);
 router.post("/student-registration", studentRegistration);
+
+// Admin
 router.get("/registered-students", authenticateAdmin, getRegisteredStudents);
 router.get("/registered-students/all", authenticateAdmin, getAllRegisteredStudents);
 

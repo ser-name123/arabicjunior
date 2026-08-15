@@ -4,8 +4,13 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [{ protocol: "https", hostname: "res.cloudinary.com" }],
   },
+  // Re-enabled: lint was switched off "temporarily" during an earlier security
+  // patch, which then suppressed everything added since — including a
+  // conditional React hook in the rich-text editor's menu bar. Errors now fail
+  // the build again; the remaining exhaustive-deps and <img> findings are
+  // warnings and do not block it.
   eslint: {
-    ignoreDuringBuilds: true, // ⚠️ Temporarily disabled to allow build with security patches
+    ignoreDuringBuilds: false,
   },
   // Security Headers
   async headers() {

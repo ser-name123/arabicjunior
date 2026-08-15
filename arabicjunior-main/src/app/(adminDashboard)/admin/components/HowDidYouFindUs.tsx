@@ -54,8 +54,9 @@ export function HowDidYouFindUsChart() {
                 }, 500)
             }
         }
+        if (!token) return
         fetchData()
-    }, [])
+    }, [token])
     return (
         <>
             {

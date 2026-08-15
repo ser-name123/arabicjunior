@@ -60,8 +60,9 @@ export function PreferredTeacherGenderWise() {
                 }, 500)
             }
         }
+        if (!token) return
         fetchData()
-    }, [])
+    }, [token])
 
     const stagesOrder = ["male", "female", "other"]
 

@@ -23,16 +23,22 @@ jobs:
       - name: SSH into server and deploy
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p 2895 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+           # Abort on the first failing command. Without this the steps ran
+           # unconditionally: a failed build still reloaded PM2 and the
+           # workflow still reported success, so a broken build could reach
+           # production silently.
+           set -euo pipefail
+
            export NVM_DIR="$HOME/.nvm"
            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
            export PATH=$PATH:/root/.local/share/pnpm
-           
+
            cd ~/apps/arabic-juniors/backend
            git pull origin main
 
            pnpm install --frozen-lockfile
            pnpm build
 
-          pm2 reload juniors-backend || pm2 start dist/index.js --name juniors-backend
+           pm2 reload juniors-backend || pm2 start dist/index.js --name juniors-backend
           EOF

@@ -6,6 +6,7 @@ import {
   sendTrialSessionEmailToUser,
 } from "../services/emailService";
 import { TrialRegFormTypes } from "../types";
+import { containsRegex } from "../utils/escapeRegex";
 
 export const registerUser: RequestHandler = async (
   req: Request,
@@ -59,7 +60,7 @@ export const getTrialUsers = async (req: Request, res: Response) => {
     // Build search filter
     let filter: any = {};
     if (search && typeof search === "string" && search.trim() !== "") {
-      const regex = new RegExp(search, "i"); // case-insensitive
+      const regex = containsRegex(search); // case-insensitive, input escaped
       filter.$or = [
         { firstName: regex },
         { lastName: regex },

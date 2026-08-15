@@ -84,8 +84,9 @@ export function ChartLineTrialVsRegistered({
         }, 500)
       }
     }
+    if (!token) return
     fetchData()
-  }, [timeRange, dateRange]);
+  }, [timeRange, dateRange, token]);
 
   return (
     <>

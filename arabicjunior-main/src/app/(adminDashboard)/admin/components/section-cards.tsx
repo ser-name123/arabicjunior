@@ -84,8 +84,12 @@ export function SectionCards() {
                 }, 500)
             }
         }
+        // The token is read from localStorage in an effect, so it is null on
+        // the first render. Without it in the dependency list this fired once
+        // with `Bearer null` and never retried.
+        if (!token) return
         fetchData()
-    }, [])
+    }, [token])
     return (
         <div className="grid grid-cols-1 gap-4 justify-between sm:grid-cols-2 lg:grid-cols-4">
             <TileCard

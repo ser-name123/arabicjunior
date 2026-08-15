@@ -7,10 +7,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import { BlogCategory, BLOGS } from "../data/blogs";
-import Head from "next/head";
+import { BlogCategory } from "../data/blogs";
 import Script from "next/script";
-import { sanitizeHtml, createSafeJsonLd } from "@/utils/security";
+import { createSafeJsonLd } from "@/utils/security";
+
+// Escape user input before it becomes a RegExp, so typing "(" in the search
+// box doesn't throw and ".*" doesn't silently match everything.
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const ALL_CATEGORIES: (BlogCategory | "All")[] = [
   "All",
@@ -50,7 +53,7 @@ const AllBlogs = () => {
     }
 
     if (search.trim() !== "") {
-      const regex = new RegExp(search, "i");
+      const regex = new RegExp(escapeRegex(search.trim()), "i");
       temp = temp.filter(
         (b) => regex.test(b.title) || regex.test(b.shortDescription)
       );
@@ -80,14 +83,11 @@ const AllBlogs = () => {
     })),
   };
 
-  console.log(JSON.stringify(jsonLd))
   return (
     <React.Fragment>
-      <Head>
-        <title>Arabic Juniors Blog</title>
-        <meta name="description" content="Explore articles about Arabic curriculum, exams, schools, and more." />
-        <link rel="canonical" href="https://arabicjuniors.com/blogs" />
-      </Head>
+      {/* NOTE: next/head is a Pages Router API and does nothing in the App
+          Router — a <Head> block here used to set a title and canonical that
+          were silently ignored. Those live in blogs/layout.tsx instead. */}
       <Script
         id="blog-schema"
         type="application/ld+json"
@@ -123,8 +123,13 @@ const AllBlogs = () => {
                 </TabsList>
 
                 <div aria-label="blog-search-bar">
+                  {/* This input had no value/onChange, so the `search` state
+                      and its filter below were unreachable — typing did
+                      nothing at all. */}
                   <Input
                     placeholder="Search..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
                     className="border border-neutral-100 rounded-lg h-10 transition-colors ease-in-out duration-300 focus-within:border-pink-400"
                   />
                 </div>

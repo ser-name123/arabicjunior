@@ -23,11 +23,14 @@ jobs:
       - name: SSH into server and deploy frontend
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -p 2895 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+            # Abort on the first failing command — see the API workflow for why.
+            set -euo pipefail
+
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
             export PATH=$PATH:/root/.local/share/pnpm
-            
+
             cd ~/apps/arabic-juniors/frontend
             git pull origin main
 

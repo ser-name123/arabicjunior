@@ -5,6 +5,7 @@ import {
   sendStudentRegConfirmationEmail,
   sendStudentRegNotifToAdmin,
 } from "../services/emailService";
+import { containsRegex } from "../utils/escapeRegex";
 
 const studentRegistration = async (req: Request, res: Response) => {
   const body: StudentRegistrationFormTypes = req.body;
@@ -90,7 +91,7 @@ export const getRegisteredStudents = async (req: Request, res: Response) => {
     // Build search filter
     let filter: any = {};
     if (search && typeof search === "string" && search.trim() !== "") {
-      const regex = new RegExp(search, "i"); // case-insensitive
+      const regex = containsRegex(search); // case-insensitive, input escaped
       filter = {
         $or: [
           { first_name: regex },

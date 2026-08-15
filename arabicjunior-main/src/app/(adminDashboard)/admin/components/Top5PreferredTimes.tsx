@@ -35,8 +35,9 @@ const Top5PreferredTimes = () => {
                 }, 500)
             }
         }
+        if (!token) return
         fetchData()
-    }, [])
+    }, [token])
     return (
         <>
             {sourceData.map((item: any, index: number) => (
