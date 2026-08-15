@@ -75,6 +75,10 @@ export function CityWiseChart() {
                 }, 500)
             }
         }
+        // `token` is in the dependency list, but the effect still ran once on
+        // the first render while it was null — firing "Bearer null" and
+        // logging a failure before the real request went out.
+        if (!token) return
         fetchData()
     }, [token])
 

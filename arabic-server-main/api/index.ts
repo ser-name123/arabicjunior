@@ -41,10 +41,18 @@ const allowedOrigins = (process.env.CLIENT_URL as string)
   .map((o) => o.trim())
   .filter(Boolean);
 
-// General rate limit - 100 requests per 15 minutes per IP.
+// General rate limit per IP.
+//
+// This was 100 per 15 minutes, which the admin dashboard trips on its own:
+// one load of the overview fires around a dozen requests (nine analytics
+// endpoints plus tiles and lists), so roughly eight page views exhausted the
+// budget and locked the admin out of their own dashboard. 300 leaves room for
+// normal admin work while still bounding automated collection — and the
+// endpoints worth scraping are no longer public. Credential endpoints have
+// their own much tighter limiter (see middleware/rateLimiters).
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 300,
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
