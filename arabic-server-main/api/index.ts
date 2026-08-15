@@ -10,7 +10,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import hpp from "hpp";
 import sanitizeHtml from "sanitize-html";
-import { connectDB } from "./config/db";
+import { connectDB, registerDbShutdownHandlers } from "./config/db";
 
 // Import routes
 import homeRoutes from "./routes/homeRoutes";
@@ -120,6 +120,8 @@ connectDB()
     app.listen(PORT, () => {
       console.log(`Backend Server is running on PORT: ${PORT}`);
     });
+
+    registerDbShutdownHandlers();
   })
   .catch((err) => {
     console.error("Error connecting to MongoDB:", err);

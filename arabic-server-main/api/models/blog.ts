@@ -105,7 +105,8 @@ BlogSchema.pre("validate", async function (next) {
 
 
 // Indexes for search
-BlogSchema.index({ slug: 1 });
+// NOTE: no index on `slug` here — `unique: true` on the field already creates
+// one, and declaring it twice makes mongoose emit a duplicate-index warning.
 BlogSchema.index({ category: 1 });
 BlogSchema.index({ title: "text", shortDescription: "text", contentText: "text" });
 
