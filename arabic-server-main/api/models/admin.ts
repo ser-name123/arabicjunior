@@ -10,8 +10,6 @@ export interface AdminDocument extends Document {
   passwordHash?: string;
   twoFactorSecret?: string;
   isTwoFactorEnabled: boolean;
-  /** Google's stable user id (`sub`), recorded on first Google sign-in. */
-  googleId?: string;
   /** Human-readable name and picture from Google, for the admin header. */
   name?: string;
   picture?: string;
@@ -27,9 +25,6 @@ const adminSchema = new mongoose.Schema(
     twoFactorSecret: { type: String },
     isTwoFactorEnabled: { type: Boolean, default: false },
 
-    // `sparse` matters: without it, every password-only admin would share a
-    // null googleId and the unique index would reject the second one.
-    googleId: { type: String, unique: true, sparse: true },
     name: { type: String, trim: true },
     picture: { type: String },
   },
