@@ -2,6 +2,7 @@ import React from "react";
 import OurValues from "./components/OurValues";
 import OurMission from "./components/OurMission";
 import AboutHero from "./components/AboutHero";
+import AboutArabicJuniors from "./components/AboutArabicJuniors";
 import OurTeacher from "./components/OurTeacher";
 import { FaqSection } from "@/components/homepage";
 import { FaqTypes } from "@/types";
@@ -38,6 +39,7 @@ const AboutUsPage = () => {
   return (
     <React.Fragment>
       <AboutHero />
+      <AboutArabicJuniors />
       <OurMission />
       <OurValues />
       <OurTeacher />

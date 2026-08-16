@@ -17,6 +17,8 @@ import {
   MessageSquare,
   Compass,
   Layout,
+  Sparkles,
+  BookOpen,
 } from "lucide-react";
 import React, { useState } from "react";
 import Link from "next/link";
@@ -87,6 +89,16 @@ const menuItems = [
     href: "/admin/trial-landing",
     label: "Trial Landing",
     icon: Compass,
+  },
+  {
+    href: "/admin/homepage-banner",
+    label: "Homepage Banner",
+    icon: Sparkles,
+  },
+  {
+    href: "/admin/about-juniors",
+    label: "About Section",
+    icon: BookOpen,
   },
   {
     href: "/admin/contact",

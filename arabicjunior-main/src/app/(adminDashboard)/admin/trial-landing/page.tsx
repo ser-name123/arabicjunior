@@ -23,7 +23,8 @@ import {
   ExternalLink,
   Home,
   Layers,
-  LayoutGrid
+  LayoutGrid,
+  Sparkles
 } from "lucide-react";
 
 type WhyCardItem = {
@@ -92,7 +93,7 @@ export default function TrialLandingAdminPage() {
   const [newSlug, setNewSlug] = useState("");
 
   // Editor Tabs for Dynamic Page Edit
-  const [activeTab, setActiveTab] = useState<"hero" | "why" | "skills" | "faq" | "cta">("hero");
+  const [activeTab, setActiveTab] = useState<"hero" | "why" | "onboarding" | "skills" | "choose" | "faq" | "cta">("hero");
 
   // Page Editor States
   const [pageTitle, setPageTitle] = useState("");
@@ -132,6 +133,9 @@ export default function TrialLandingAdminPage() {
   const [curriculaTitle, setCurriculaTitle] = useState("");
   const [curriculaDescription, setCurriculaDescription] = useState("");
   const [curriculaBadges, setCurriculaBadges] = useState<string[]>([]);
+  const [curriculaImageUrl, setCurriculaImageUrl] = useState("");
+  const [curriculaImageFile, setCurriculaImageFile] = useState<File | null>(null);
+  const [curriculaImagePreview, setCurriculaImagePreview] = useState("");
 
   // Choose Cards State
   const [chooseSubheader, setChooseSubheader] = useState("");
@@ -200,7 +204,16 @@ export default function TrialLandingAdminPage() {
       });
       const result = await res.json();
       if (res.ok && result.data) {
-        setPagesList(result.data);
+        // Deduplicate items by slug so multiple identical pages never render
+        const uniquePages: LandingPageListItem[] = [];
+        const seenSlugs = new Set<string>();
+        for (const item of result.data) {
+          if (!seenSlugs.has(item.slug)) {
+            seenSlugs.add(item.slug);
+            uniquePages.push(item);
+          }
+        }
+        setPagesList(uniquePages);
       } else {
         toast.error("Failed to load landing pages list");
       }
@@ -286,6 +299,8 @@ export default function TrialLandingAdminPage() {
         setCurriculaTitle(d.curriculaTitle || "");
         setCurriculaDescription(d.curriculaDescription || "");
         setCurriculaBadges(d.curriculaBadges || []);
+        setCurriculaImageUrl(d.curriculaImageUrl || "");
+        setCurriculaImagePreview(d.curriculaImageUrl || "");
 
         // Choose Cards
         setChooseSubheader(d.chooseSubheader || "");
@@ -378,7 +393,8 @@ export default function TrialLandingAdminPage() {
   };
 
   const handleDeletePage = async (id: string, slugName: string) => {
-    if (slugName === "trial-landing") {
+    const defaultCount = pagesList.filter((p) => p.slug === "trial-landing").length;
+    if (slugName === "trial-landing" && defaultCount <= 1) {
       toast.error("Default trial landing page cannot be deleted");
       return;
     }
@@ -607,6 +623,7 @@ export default function TrialLandingAdminPage() {
       if (heroImageFile) formData.append("heroImage", heroImageFile);
       if (suitabilityImageFile) formData.append("suitabilityImage", suitabilityImageFile);
       if (ctaImageFile) formData.append("ctaImage", ctaImageFile);
+      if (curriculaImageFile) formData.append("curriculaImage", curriculaImageFile);
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/trial-landing/${selectedPageId}`, {
         method: "PUT",
@@ -1134,48 +1151,66 @@ export default function TrialLandingAdminPage() {
       <div className="flex flex-wrap gap-2 border-b pb-3">
         <button
           onClick={() => setActiveTab("hero")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
-            activeTab === "hero" ? "bg-orange-500 text-white" : "bg-white border text-neutral-700 hover:bg-neutral-50"
+          className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+            activeTab === "hero" ? "bg-orange-500 text-white shadow-sm" : "bg-white border text-neutral-700 hover:bg-neutral-50"
           }`}
         >
-          <Compass size={16} />
+          <Compass size={15} />
           1. Hero Section
         </button>
         <button
           onClick={() => setActiveTab("why")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
-            activeTab === "why" ? "bg-orange-500 text-white" : "bg-white border text-neutral-700 hover:bg-neutral-50"
+          className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+            activeTab === "why" ? "bg-orange-500 text-white shadow-sm" : "bg-white border text-neutral-700 hover:bg-neutral-50"
           }`}
         >
-          <FileText size={16} />
-          2. Value Propositions
+          <FileText size={15} />
+          2. Why Take a Trial
+        </button>
+        <button
+          onClick={() => setActiveTab("onboarding")}
+          className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+            activeTab === "onboarding" ? "bg-orange-500 text-white shadow-sm" : "bg-white border text-neutral-700 hover:bg-neutral-50"
+          }`}
+        >
+          <Layers size={15} />
+          3. How It Works (4 Steps)
         </button>
         <button
           onClick={() => setActiveTab("skills")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
-            activeTab === "skills" ? "bg-orange-500 text-white" : "bg-white border text-neutral-700 hover:bg-neutral-50"
+          className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+            activeTab === "skills" ? "bg-orange-500 text-white shadow-sm" : "bg-white border text-neutral-700 hover:bg-neutral-50"
           }`}
         >
-          <BookOpen size={16} />
-          3. Assessments
+          <BookOpen size={15} />
+          4. Assessments & Curricula
+        </button>
+        <button
+          onClick={() => setActiveTab("choose")}
+          className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+            activeTab === "choose" ? "bg-orange-500 text-white shadow-sm" : "bg-white border text-neutral-700 hover:bg-neutral-50"
+          }`}
+        >
+          <LayoutGrid size={15} />
+          5. Why Parents Choose Us
         </button>
         <button
           onClick={() => setActiveTab("faq")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
-            activeTab === "faq" ? "bg-orange-500 text-white" : "bg-white border text-neutral-700 hover:bg-neutral-50"
+          className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+            activeTab === "faq" ? "bg-orange-500 text-white shadow-sm" : "bg-white border text-neutral-700 hover:bg-neutral-50"
           }`}
         >
-          <HelpCircle size={16} />
-          4. Audience & FAQs
+          <HelpCircle size={15} />
+          6. Audience & FAQs
         </button>
         <button
           onClick={() => setActiveTab("cta")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
-            activeTab === "cta" ? "bg-orange-500 text-white" : "bg-white border text-neutral-700 hover:bg-neutral-50"
+          className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+            activeTab === "cta" ? "bg-orange-500 text-white shadow-sm" : "bg-white border text-neutral-700 hover:bg-neutral-50"
           }`}
         >
-          <UserCheck size={16} />
-          5. CTA Banner
+          <UserCheck size={15} />
+          7. Bottom CTA Banner
         </button>
       </div>
 
@@ -1437,6 +1472,32 @@ export default function TrialLandingAdminPage() {
                         className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black"
                       />
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 mb-1">Card Icon</label>
+                      <select
+                        value={card.icon || "FileText"}
+                        onChange={(e) => handleWhyCardChange(idx, "icon", e.target.value)}
+                        className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black font-medium"
+                      >
+                        <option value="FileText">📄 FileText (Document)</option>
+                        <option value="Monitor">💻 Monitor (Laptop/Computer)</option>
+                        <option value="UserCheck">👤 UserCheck (Teacher/Person)</option>
+                        <option value="HeartHandshake">🤝 HeartHandshake (Feedback)</option>
+                        <option value="BookOpen">📖 BookOpen (Reading)</option>
+                        <option value="Edit">✏️ Edit (Writing)</option>
+                        <option value="Mic">🎙️ Mic (Speaking)</option>
+                        <option value="Headphones">🎧 Headphones (Listening)</option>
+                        <option value="Brain">🧠 Brain (Knowledge)</option>
+                        <option value="Sparkles">✨ Sparkles (Evaluation)</option>
+                        <option value="CheckCircle">✅ CheckCircle (Success)</option>
+                        <option value="GraduationCap">🎓 GraduationCap (Education)</option>
+                        <option value="Award">🏆 Award (Achievement)</option>
+                        <option value="Star">⭐ Star (Rating)</option>
+                        <option value="Target">🎯 Target (Goal)</option>
+                        <option value="Clock">⏰ Clock (Time)</option>
+                        <option value="ShieldCheck">🛡️ ShieldCheck (Trust)</option>
+                      </select>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1468,6 +1529,12 @@ export default function TrialLandingAdminPage() {
               </div>
             </div>
 
+          </div>
+        )}
+
+        {/* TAB 5: WHY PARENTS CHOOSE US (SECTION 5) */}
+        {activeTab === "choose" && (
+          <div className="space-y-6">
             <div className="bg-white border rounded-xl shadow-sm p-6 space-y-4">
               <h3 className="text-lg font-semibold text-neutral-800 border-b pb-2">More Than Just a Demo (Section 5) Header</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1478,7 +1545,7 @@ export default function TrialLandingAdminPage() {
                     value={chooseSubheader}
                     onChange={(e) => setChooseSubheader(e.target.value)}
                     placeholder="Why Parents Choose Our Trial"
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
+                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black font-medium"
                   />
                 </div>
                 <div>
@@ -1488,7 +1555,7 @@ export default function TrialLandingAdminPage() {
                     value={chooseHeading}
                     onChange={(e) => setChooseHeading(e.target.value)}
                     placeholder="More Than Just a Demo Class"
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
+                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black font-semibold"
                   />
                 </div>
               </div>
@@ -1518,11 +1585,42 @@ export default function TrialLandingAdminPage() {
                         className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black"
                       />
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 mb-1">Card Icon</label>
+                      <select
+                        value={card.icon || "BookOpen"}
+                        onChange={(e) => handleChooseCardChange(idx, "icon", e.target.value)}
+                        className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black font-medium"
+                      >
+                        <option value="BookOpen">📖 BookOpen (Reading)</option>
+                        <option value="FileText">📄 FileText (Document)</option>
+                        <option value="Monitor">💻 Monitor (Laptop/Computer)</option>
+                        <option value="UserCheck">👤 UserCheck (Teacher/Person)</option>
+                        <option value="HeartHandshake">🤝 HeartHandshake (Feedback)</option>
+                        <option value="Edit">✏️ Edit (Writing)</option>
+                        <option value="Mic">🎙️ Mic (Speaking)</option>
+                        <option value="Headphones">🎧 Headphones (Listening)</option>
+                        <option value="Brain">🧠 Brain (Knowledge)</option>
+                        <option value="Sparkles">✨ Sparkles (Evaluation)</option>
+                        <option value="CheckCircle">✅ CheckCircle (Success)</option>
+                        <option value="GraduationCap">🎓 GraduationCap (Education)</option>
+                        <option value="Award">🏆 Award (Achievement)</option>
+                        <option value="Star">⭐ Star (Rating)</option>
+                        <option value="Target">🎯 Target (Goal)</option>
+                        <option value="Clock">⏰ Clock (Time)</option>
+                        <option value="ShieldCheck">🛡️ ShieldCheck (Trust)</option>
+                      </select>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
+        )}
 
+        {/* TAB 3: HOW IT WORKS (4 STEPS TIMELINE) */}
+        {activeTab === "onboarding" && (
+          <div className="space-y-6">
             <div className="bg-white border rounded-xl shadow-sm p-6 space-y-4">
               <h3 className="text-lg font-semibold text-neutral-800 border-b pb-2">Getting Started Is Easy (Section 6) Header</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1533,7 +1631,7 @@ export default function TrialLandingAdminPage() {
                     value={onboardingSubheader}
                     onChange={(e) => setOnboardingSubheader(e.target.value)}
                     placeholder="How It Works"
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
+                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black font-medium"
                   />
                 </div>
                 <div>
@@ -1543,41 +1641,43 @@ export default function TrialLandingAdminPage() {
                     value={onboardingHeading}
                     onChange={(e) => setOnboardingHeading(e.target.value)}
                     placeholder="Getting Started Is Easy"
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
+                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black font-semibold"
                   />
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-800 pl-1">Timeline steps Configuration (4 Steps)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <h3 className="text-lg font-semibold text-neutral-800 pl-1">4 Step Cards Configuration</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {onboardingSteps.map((step, idx) => (
-                  <div key={idx} className="bg-white border rounded-xl shadow-sm p-4 space-y-3">
-                    <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider block">Step #{idx + 1}</span>
+                  <div key={idx} className="bg-white border rounded-xl shadow-sm p-5 space-y-3">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Step #{idx + 1}</span>
+                      <span className="text-xs font-black text-white px-2.5 py-0.5 rounded-full bg-blue-600">Circle #{step.num}</span>
+                    </div>
                     <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-1">Title</label>
+                      <label className="block text-xs font-bold text-neutral-500 mb-1">Step Title</label>
                       <input
                         type="text"
                         value={step.title}
                         onChange={(e) => handleOnboardingStepChange(idx, "title", e.target.value)}
-                        className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black font-semibold"
+                        className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white text-black font-bold"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-1">Description</label>
+                      <label className="block text-xs font-bold text-neutral-500 mb-1">Step Description</label>
                       <textarea
                         value={step.desc}
                         onChange={(e) => handleOnboardingStepChange(idx, "desc", e.target.value)}
-                        rows={2}
-                        className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black"
+                        rows={3}
+                        className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white text-black"
                       />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-
           </div>
         )}
 
@@ -1643,6 +1743,28 @@ export default function TrialLandingAdminPage() {
                         className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black"
                       />
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 mb-1">Skill Icon</label>
+                      <select
+                        value={skill.icon || "BookOpen"}
+                        onChange={(e) => handleSkillChange(idx, "icon", e.target.value)}
+                        className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black font-medium"
+                      >
+                        <option value="BookOpen">📖 BookOpen (Reading)</option>
+                        <option value="Edit">✏️ Edit (Writing)</option>
+                        <option value="Mic">🎙️ Mic (Speaking)</option>
+                        <option value="Headphones">🎧 Headphones (Listening)</option>
+                        <option value="Brain">🧠 Brain (Grammar/Vocabulary)</option>
+                        <option value="Sparkles">✨ Sparkles (Evaluation)</option>
+                        <option value="CheckCircle">✅ CheckCircle (Assessment)</option>
+                        <option value="GraduationCap">🎓 GraduationCap (Education)</option>
+                        <option value="Award">🏆 Award (Achievement)</option>
+                        <option value="Star">⭐ Star (Rating)</option>
+                        <option value="Target">🎯 Target (Goal)</option>
+                        <option value="Clock">⏰ Clock (Time)</option>
+                        <option value="ShieldCheck">🛡️ ShieldCheck (Trust)</option>
+                      </select>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1692,6 +1814,46 @@ export default function TrialLandingAdminPage() {
                   className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
                 />
                 <span className="text-xs text-neutral-400 mt-1 block">Separate badges using a comma (e.g. CBSE, IB, UAE MOE)</span>
+              </div>
+
+              {/* Curricula Skyline Image Uploader */}
+              <div className="pt-4 border-t space-y-3">
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5 font-semibold">UAE Curricula Bottom Image (Dubai Skyline Illustration)</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                  <div className="border border-dashed rounded-lg p-5 flex flex-col items-center justify-center relative">
+                    <input
+                      type="file"
+                      id="curricula-image-file"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          setCurriculaImageFile(e.target.files[0]);
+                          setCurriculaImagePreview(URL.createObjectURL(e.target.files[0]));
+                        }
+                      }}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <label htmlFor="curricula-image-file" className="cursor-pointer text-center group">
+                      <Upload className="h-8 w-8 text-neutral-400 group-hover:text-orange-500 mx-auto mb-1" />
+                      <span className="text-xs font-semibold text-orange-500 group-hover:underline">Choose New Image</span>
+                    </label>
+                    {curriculaImagePreview && (
+                      <div className="mt-4 w-44 h-24 bg-slate-50 rounded border flex items-center justify-center p-1 relative overflow-hidden">
+                        <img src={curriculaImagePreview} alt="Skyline Preview" className="max-w-full max-h-full object-contain" />
+                        <button
+                          type="button"
+                          onClick={() => { setCurriculaImageFile(null); setCurriculaImagePreview(curriculaImageUrl || ""); }}
+                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 text-[10px] hover:bg-red-600 font-bold px-1.5 z-10"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-xs text-neutral-400 leading-relaxed">
+                    This image represents the Dubai Skyline illustration at the bottom of the UAE Curricula card in Section 4. Upload any new PNG/JPG/SVG graphic to change this image.
+                  </span>
+                </div>
               </div>
             </div>
 

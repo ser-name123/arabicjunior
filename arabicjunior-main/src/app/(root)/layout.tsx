@@ -14,7 +14,7 @@ export default function HomeLayout({
     <div aria-label="home-layout" className="w-full relative">
       <Preloader />
       <Header />
-      <div className="w-full relative">{children}</div>
+      <div className="w-full relative overflow-x-clip">{children}</div>
       <Newsletter />
       <Footer />
       <WhatsAppFloatingButton />

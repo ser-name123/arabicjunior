@@ -82,10 +82,10 @@ const TrialSectionBanner = () => {
         <div className="bg-white border border-[#E2E8F0] shadow-[0px_4px_30px_rgba(0,0,0,0.03)] rounded-[32px] overflow-hidden flex flex-col justify-between">
           
           {/* Main Section */}
-          <div className="p-6 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white relative">
+          <div className="p-6 md:pl-12 md:pr-0 md:py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center bg-white relative overflow-hidden">
             
             {/* Left Content Column */}
-            <div className="lg:col-span-7 space-y-6 z-10">
+            <div className="lg:col-span-6 space-y-6 z-10">
               
               {/* Orange Badge */}
               <Reveal variant="up" delay={50}>
@@ -128,7 +128,7 @@ const TrialSectionBanner = () => {
 
               {/* 4 Feature Circles */}
               <Reveal variant="up" delay={200}>
-                <div className="grid grid-cols-4 gap-2 pt-4">
+                <div className="grid grid-cols-4 gap-3 pt-4">
                   {features.map((feat: any, idx: number) => {
                     const Icon = getIconComponent(feat.icon);
                     const bgs = ["bg-[#FFF5F1]", "bg-[#F0FAF0]", "bg-[#FFFDF0]", "bg-[#F0F7FF]"];
@@ -141,7 +141,7 @@ const TrialSectionBanner = () => {
                           <Icon size={20} />
                         </div>
                         <span 
-                          className="text-[10px] md:text-xs font-bold text-neutral-800 leading-tight"
+                          className="text-xs md:text-sm font-semibold text-neutral-800 leading-snug"
                           dangerouslySetInnerHTML={{ __html: feat.title.replace(/\s/g, "<br />") }}
                         />
                       </div>
@@ -154,13 +154,13 @@ const TrialSectionBanner = () => {
               <Reveal variant="up" delay={250}>
                 <div className="flex flex-col sm:flex-row gap-3 pt-6">
                   <Link href="/register">
-                    <Button className="w-full sm:w-auto h-12 px-8 bg-[#FB6238] hover:bg-[#E04E26] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all">
+                    <Button className="w-full sm:w-auto h-13 px-8 bg-[#FB6238] hover:bg-[#E04E26] text-white font-bold text-base rounded-xl flex items-center justify-center gap-2 shadow-md transition-all">
                       {btnBookText}
-                      <ArrowRight size={16} />
+                      <ArrowRight size={17} />
                     </Button>
                   </Link>
                   <Link href="/trial-landing">
-                    <Button variant="outline" className="w-full sm:w-auto h-12 px-6 border-2 border-[#FB6238] text-[#FB6238] hover:bg-[#FFF5F1] font-bold rounded-xl flex items-center justify-center gap-2 transition-all">
+                    <Button variant="outline" className="w-full sm:w-auto h-13 px-7 border-2 border-[#FB6238] text-[#FB6238] hover:bg-[#FFF5F1] font-bold text-base rounded-xl flex items-center justify-center gap-2 transition-all">
                       {btnDetailsText}
                     </Button>
                   </Link>
@@ -169,58 +169,23 @@ const TrialSectionBanner = () => {
 
               {/* Subtext info */}
               <Reveal variant="up" delay={300}>
-                <div className="text-xs text-neutral-500 space-y-1.5 pt-2">
+                <div className="text-xs md:text-sm font-normal text-neutral-500 space-y-1 pt-2">
                   {subtext1 && <p>{subtext1}</p>}
                   {subtext2 && <p>{subtext2}</p>}
                 </div>
               </Reveal>
             </div>
 
-            {/* Right Image Column with custom floating letters & curves */}
-            <Reveal variant="scale" delay={150} className="lg:col-span-5 flex justify-center relative py-6 lg:py-0 z-10">
-              <div className="w-full flex justify-center relative">
-                {/* Soft Cream/Peach Circle Background behind child */}
-                <div className="absolute w-[360px] h-[360px] md:w-[420px] md:h-[420px] bg-[#FFF2E9] rounded-full pointer-events-none z-0 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-95" />
-
-                {/* Background Dotted Curves */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 400 400" fill="none">
-                  <path 
-                    d="M 40,220 Q 180,60 360,140" 
-                    stroke="#FFBD9D" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeDasharray="6 6" 
-                  />
-                  <path 
-                    d="M 60,280 Q 240,110 370,250" 
-                    stroke="#FFD5C2" 
-                    strokeWidth="1.5" 
-                    strokeLinecap="round" 
-                    strokeDasharray="4 4" 
-                  />
-                </svg>
-
-                {/* Floating Arabic Letters */}
-                <span className="absolute -top-4 right-16 text-[#FF8B66] text-5xl font-bold font-serif pointer-events-none select-none z-20 animate-float-slow">
-                  ع
-                </span>
-                <span className="absolute top-4 left-10 text-[#4ADE80] text-5xl font-bold font-serif pointer-events-none select-none z-20 animate-float-slow" style={{ animationDelay: '1.2s' }}>
-                  أ
-                </span>
-                <span className="absolute bottom-20 right-4 text-[#FACC15] text-4xl font-bold font-serif pointer-events-none select-none z-20 animate-float-slow" style={{ animationDelay: '2.4s' }}>
-                  ب
-                </span>
-
-                {/* Image Wrapper */}
-                <div className="w-full max-w-[420px] aspect-[4/3] relative rounded-3xl overflow-hidden border border-[#FFF0E7] shadow-lg bg-white z-10">
-                  <Image
-                    src={imageUrl}
-                    alt="Free trial Arabic class illustration"
-                    fill
-                    className="object-cover"
-                    priority
-                  />
-                </div>
+            {/* Right Image Column (Only Image - Flush Right, Extra Large Size) */}
+            <Reveal variant="scale" delay={150} className="lg:col-span-6 flex justify-end items-center relative z-10 w-full h-full pr-0">
+              <div className="w-full max-w-[800px] h-[420px] sm:h-[500px] md:h-[580px] lg:h-[640px] relative flex items-center justify-end">
+                <Image
+                  src={imageUrl}
+                  alt="Free trial Arabic class illustration"
+                  fill
+                  className="object-contain object-right"
+                  priority
+                />
               </div>
             </Reveal>
 
@@ -236,12 +201,12 @@ const TrialSectionBanner = () => {
               
               return (
                 <Reveal key={idx} variant="up" index={idx} delay={300} className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full ${bgs[idx % bgs.length]} border ${borders[idx % borders.length]} ${textColors[idx % textColors.length]} flex items-center justify-center shrink-0 shadow-sm`}>
+                  <div className={`w-11 h-11 rounded-full ${bgs[idx % bgs.length]} border ${borders[idx % borders.length]} ${textColors[idx % textColors.length]} flex items-center justify-center shrink-0 shadow-sm`}>
                     <Icon size={20} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-neutral-800">{card.title}</h4>
-                    <p className="text-xs text-neutral-500 mt-0.5">{card.desc}</p>
+                    <h4 className="text-sm md:text-base font-bold text-neutral-800">{card.title}</h4>
+                    <p className="text-xs text-neutral-500 font-normal mt-0.5">{card.desc}</p>
                   </div>
                 </Reveal>
               );

@@ -4,7 +4,6 @@
 
 html, body {
   max-width: 100%;
-  overflow-x: clip;
 }
 
 body {
@@ -478,4 +477,32 @@ img.hover-zoom {
 
 .animate-float-slow {
   animation: float-slow 4s ease-in-out infinite;
+}
+
+/* Hero artwork: dissolve the outer edge of the picture into the page.
+
+   The mockup this hero follows uses a cut-out subject on a transparent
+   background, sitting directly on the blue blob with no frame around it. The
+   photograph currently in `public/` is a full square photo of a room, so
+   dropping the old white card frame would otherwise leave a hard rectangle
+   pasted over the blob.
+
+   Feathering the outer ring gets the photo close to the intended look, and is
+   a no-op for a real cut-out PNG: the subject sits inside the fully opaque
+   centre, so only empty transparent pixels are ever touched. That means the
+   admin can upload a background-removed image later and this needs no change.
+
+   -webkit- is still required for Safari; the unprefixed property is ignored
+   by browsers that only understand the prefixed one, and vice versa. */
+.hero-artwork-feather {
+  -webkit-mask-image: radial-gradient(
+    ellipse 78% 78% at 50% 47%,
+    #000 62%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 78% 78% at 50% 47%,
+    #000 62%,
+    transparent 100%
+  );
 }

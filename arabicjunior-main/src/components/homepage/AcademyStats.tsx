@@ -133,7 +133,7 @@ const AcademyStats = () => {
           {/* Left Intro Column (Centered content) */}
           <Reveal
             variant="left"
-            className="lg:col-span-7 flex flex-col items-center text-center gap-y-4 lg:pr-6"
+            className="lg:col-span-6 flex flex-col items-center text-center gap-y-4 lg:pr-6"
           >
             <div className="flex items-center gap-x-3 justify-center mb-1">
               <span className="text-[#FB6238] opacity-60 font-semibold">──✦──</span>
@@ -153,25 +153,20 @@ const AcademyStats = () => {
             </p>
           </Reveal>
 
-          {/* Right Image Column (Transparent Boy Image with circular glow) */}
+          {/* Right Image Column (Only Static Image - Larger Width) */}
           <Reveal
             variant="right"
             delay={120}
-            className="lg:col-span-5 flex justify-center lg:justify-end relative w-full"
+            className="lg:col-span-6 flex justify-center lg:justify-end relative w-full"
           >
-            {/* Background Glow Circle */}
-            <div 
-              className="absolute w-72 h-72 sm:w-[22rem] sm:h-[22rem] rounded-full bg-[#FFEFEB] -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" 
-              aria-hidden="true"
-            />
             {/* Image Wrapper */}
-            <div className="relative w-72 h-72 sm:w-[24rem] sm:h-[24rem] select-none pointer-events-none flex items-center justify-center animate-float-slow">
+            <div className="relative w-full max-w-[560px] h-[340px] sm:h-[420px] md:h-[480px] flex items-center justify-center lg:justify-end">
               <Image
                 src={imageUrlToRender}
                 alt="Smiling boy studying at desk"
                 fill
-                sizes="(max-w-768px) 288px, 384px"
-                className="object-contain drop-shadow-sm"
+                sizes="(max-width: 768px) 100vw, 560px"
+                className="object-contain"
                 priority
               />
             </div>
@@ -193,8 +188,8 @@ const AcademyStats = () => {
               >
                 <div>
                   {/* Icon & Title Row */}
-                  <div className="flex items-center gap-x-4 mb-3">
-                    <div className={`h-12 w-12 rounded-full ${style.iconBg} flex items-center justify-center flex-shrink-0`}>
+                  <div className="flex items-center gap-x-2.5 mb-3">
+                    <div className={`h-10 w-10 sm:h-11 sm:w-11 rounded-full ${style.iconBg} flex items-center justify-center flex-shrink-0`}>
                       {style.icon}
                     </div>
                     <div className="flex flex-col min-w-0">
@@ -203,9 +198,9 @@ const AcademyStats = () => {
                           server, so it is still in the HTML. */}
                       <CountUp
                         value={stat.value}
-                        className={`text-2xl sm:text-3xl font-bold leading-none tabular-nums ${style.valueColor}`}
+                        className={`text-xl sm:text-2xl font-bold leading-none tabular-nums ${style.valueColor}`}
                       />
-                      <span className="text-sm font-bold text-neutral-800 mt-1 leading-tight truncate">
+                      <span className="text-[11px] sm:text-xs xl:text-sm font-extrabold text-neutral-900 mt-1 leading-tight whitespace-nowrap">
                         {stat.label}
                       </span>
                     </div>
@@ -213,7 +208,7 @@ const AcademyStats = () => {
                 </div>
 
                 {/* Description */}
-                <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed font-normal mt-1">
+                <p className="text-sm md:text-[15px] text-neutral-700 leading-relaxed font-medium mt-2">
                   {stat.desc}
                 </p>
               </Reveal>

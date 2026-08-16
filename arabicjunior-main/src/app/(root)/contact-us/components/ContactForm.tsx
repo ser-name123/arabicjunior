@@ -84,7 +84,8 @@ const ContactForm = () => {
       setIsLoading(true);
       toast.loading("Submitting your message...", { id: "contact-submit" });
 
-      const contactURL = process.env.NEXT_PUBLIC_API_BASE_URL + "/contact/submit";
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api";
+      const contactURL = `${apiBase}/contact/submit`;
       const res = await fetch(contactURL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
