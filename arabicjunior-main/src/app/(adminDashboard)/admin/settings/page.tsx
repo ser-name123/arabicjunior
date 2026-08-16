@@ -378,7 +378,7 @@ const SettingsPage = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                {!isSelf && (
+                                                {!isSelf && admin.email?.toLowerCase() !== "imran.gauri@gmail.com" && (
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"

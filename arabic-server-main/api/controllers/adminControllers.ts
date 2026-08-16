@@ -309,10 +309,17 @@ export const deleteAdmin = async (req: AuthenticatedRequest, res: Response): Pro
     if (id === req.adminId) {
       return res.status(400).json({ message: "You cannot delete yourself!" });
     }
-    const admin = await Admin.findByIdAndDelete(id);
+
+    const admin = await Admin.findById(id);
     if (!admin) {
       return res.status(404).json({ message: "Admin not found" });
     }
+
+    if (admin.email && admin.email.toLowerCase().trim() === "imran.gauri@gmail.com") {
+      return res.status(403).json({ message: "Master administrator cannot be deleted!" });
+    }
+
+    await Admin.findByIdAndDelete(id);
     res.status(200).json({ message: "Admin deleted successfully!" });
   } catch (error) {
     console.error("Delete admin error:", error);
