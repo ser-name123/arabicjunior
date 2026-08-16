@@ -60,7 +60,7 @@ export default function GoogleSignInButton({
       onBusyChange?.(true);
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/google-login`,
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/google`,
           {
             method: "POST",
             credentials: "include",
