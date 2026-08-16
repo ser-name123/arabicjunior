@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import cloudinary from "../config/cloudinary";
 import JobApplication from "../models/jobApplication";
 import Job from "../models/job";
+import { createAdminNotification } from "../utils/createNotification";
 
 const uploadToCloudinary = async (file: Express.Multer.File) => {
   const b64 = Buffer.from(file.buffer).toString("base64");
@@ -51,6 +52,15 @@ export const applyJob = async (req: Request, res: Response): Promise<any> => {
     });
 
     await application.save();
+
+    // Create Admin Notification
+    await createAdminNotification({
+      type: "job",
+      title: "New Job Application",
+      message: `${fullName} applied for ${job.title}`,
+      link: "/admin/jobs",
+      data: { id: application._id, fullName, jobTitle: job.title }
+    });
 
     res.status(201).json({
       success: true,

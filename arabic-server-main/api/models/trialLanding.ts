@@ -55,6 +55,8 @@ export interface TrialLandingDocument extends Document {
   curriculaTitle: string;
   curriculaDescription: string;
   curriculaBadges: string[];
+  curriculaImageUrl: string;
+  curriculaImagePublicId: string;
 
   // Choose Section
   chooseSubheader: string;
@@ -217,6 +219,8 @@ const trialLandingSchema = new mongoose.Schema(
     curriculaTitle: { type: String, default: "We Support All Major UAE School Curricula" },
     curriculaDescription: { type: String, default: "We tailor our classes to match your child's school requirements." },
     curriculaBadges: { type: [String], default: ["UAE MOE", "CBSE", "British", "IB", "American"] },
+    curriculaImageUrl: { type: String, default: "/dubai-skyline.png" },
+    curriculaImagePublicId: { type: String, default: "" },
 
     // Choose Section
     chooseSubheader: { type: String, default: "Why Parents Choose Our Trial" },

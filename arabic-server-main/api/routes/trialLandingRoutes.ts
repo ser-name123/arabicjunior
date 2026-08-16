@@ -15,7 +15,8 @@ const router = express.Router();
 const uploadMiddleware = imageUpload.fields([
   { name: "heroImage", maxCount: 1 },
   { name: "suitabilityImage", maxCount: 1 },
-  { name: "ctaImage", maxCount: 1 }
+  { name: "ctaImage", maxCount: 1 },
+  { name: "curriculaImage", maxCount: 1 }
 ]);
 
 // Public route to fetch settings by slug

@@ -3,6 +3,7 @@ import cloudinary from "../config/cloudinary";
 import TeacherRegistration from "../models/teacherRegistration";
 import { sendTeacherRegistrationReplyEmail, sendTeacherRegToAdmin } from "../services/emailService";
 import { TeacherRegistrationTypes } from "../types";
+import { createAdminNotification } from "../utils/createNotification";
 
 const uploadToCloudinary = async (file: Express.Multer.File) => {
   const b64 = Buffer.from(file.buffer).toString("base64");
@@ -47,6 +48,15 @@ export const teacherRegistration = async (req: Request, res: Response) => {
     // Save teacherData to MongoDB
     const teachers = new TeacherRegistration(teacherData);
     await teachers.save();
+
+    // Create Admin Notification
+    await createAdminNotification({
+      type: "teacher",
+      title: "New Teacher Application",
+      message: `${body.first_name || ""} ${body.last_name || ""} (${body.email}) applied as a teacher`,
+      link: "/admin/teacher-requests",
+      data: { id: teachers._id, email: body.email, name: `${body.first_name || ""} ${body.last_name || ""}` }
+    });
 
     // send reply email after register a teacher
     try {

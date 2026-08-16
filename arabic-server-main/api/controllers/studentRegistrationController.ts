@@ -6,6 +6,7 @@ import {
   sendStudentRegNotifToAdmin,
 } from "../services/emailService";
 import { containsRegex } from "../utils/escapeRegex";
+import { createAdminNotification } from "../utils/createNotification";
 
 const studentRegistration = async (req: Request, res: Response) => {
   const body: StudentRegistrationFormTypes = req.body;
@@ -49,6 +50,15 @@ const studentRegistration = async (req: Request, res: Response) => {
     // db
     const students = new StudentRegistration(body);
     await students.save();
+
+    // Create Admin Notification
+    await createAdminNotification({
+      type: "trial",
+      title: "New Free Trial Request",
+      message: `${first_name || ""} ${last_name || ""} (${email}) registered for ${pricing_package || "Trial"}`,
+      link: "/admin/registered-users",
+      data: { id: students._id, email, pricing_package }
+    });
 
     // send confirmation email after register
     await sendStudentRegConfirmationEmail({

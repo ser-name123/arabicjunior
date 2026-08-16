@@ -29,6 +29,8 @@ import chatbotRoutes from "./routes/chatbotRoutes";
 import trialLandingRoutes from "./routes/trialLandingRoutes";
 import homepageTrialRoutes from "./routes/homepageTrialRoutes";
 import footerSettingsRoutes from "./routes/footerSettingsRoutes";
+import notificationRoutes from "./routes/notificationRoutes";
+import aboutJuniorsRoutes from "./routes/aboutJuniorsRoutes";
 
 // Init the app
 const app = express();
@@ -171,7 +173,9 @@ connectDB()
     app.use("/", chatbotRoutes);
     app.use("/", trialLandingRoutes);
     app.use("/", homepageTrialRoutes);
+    app.use("/", aboutJuniorsRoutes);
     app.use("/footer-settings", footerSettingsRoutes);
+    app.use("/admin/notifications", notificationRoutes);
     app.use("/health-check", (req, res) => {
       res.status(200).json({
         message: `Hi, Welcome to Arabic Juiniors Backend Server.!`,

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import ContactMessage from "../models/contactMessage";
 import ContactSettings from "../models/contactSettings";
 import { sendEmailToAdmin } from "../utils/sendEmailToAdmin";
+import { createAdminNotification } from "../utils/createNotification";
 
 // POST: Submit a contact message (Public)
 export const submitContactMessage = async (req: Request, res: Response) => {
@@ -16,6 +17,15 @@ export const submitContactMessage = async (req: Request, res: Response) => {
             message,
         });
         await newContact.save();
+
+        // Create Admin Notification
+        await createAdminNotification({
+            type: "contact",
+            title: "New Contact Message",
+            message: `${fullName} (${email}) sent a message: ${contactingPurpose || "General Inquiry"}`,
+            link: "/admin/contact",
+            data: { id: newContact._id, fullName, email }
+        });
 
         const htmlContent = `<table width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
             <tr>
@@ -62,11 +72,15 @@ export const submitContactMessage = async (req: Request, res: Response) => {
             </tr>
             </table>`;
 
-        // Send email notification
-        await sendEmailToAdmin({
-            subject: "New Contact Message",
-            htmlContent,
-        });
+        // Send email notification safely
+        try {
+            await sendEmailToAdmin({
+                subject: "New Contact Message",
+                htmlContent,
+            });
+        } catch (emailErr) {
+            console.error("Email notification error (non-blocking):", emailErr);
+        }
 
         res.status(201).json({ message: "Your message has been sent successfully!" });
     } catch (error) {

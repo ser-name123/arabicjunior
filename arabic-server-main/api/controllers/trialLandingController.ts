@@ -27,6 +27,17 @@ const slugify = (text: string) => {
 export const getTrialLandingSettings = async (req: Request, res: Response): Promise<any> => {
   try {
     const slugParam = req.params.slug || "trial-landing";
+
+    // Auto-clean any accidental duplicates in DB
+    if (slugParam === "trial-landing") {
+      const duplicates = await TrialLanding.find({ slug: "trial-landing" }).sort({ createdAt: -1 });
+      if (duplicates.length > 1) {
+        const [keep, ...removeList] = duplicates;
+        const idsToRemove = removeList.map((d) => d._id);
+        await TrialLanding.deleteMany({ _id: { $in: idsToRemove } });
+      }
+    }
+
     let settings = await TrialLanding.findOne({ slug: slugParam });
     
     // If it's the default slug and doesn't exist, bootstrap it
@@ -49,6 +60,14 @@ export const getTrialLandingSettings = async (req: Request, res: Response): Prom
 // GET: List all trial landing pages (Admin Only)
 export const listTrialLandings = async (req: Request, res: Response): Promise<any> => {
   try {
+    // Auto-clean any accidental duplicates in DB
+    const duplicates = await TrialLanding.find({ slug: "trial-landing" }).sort({ createdAt: -1 });
+    if (duplicates.length > 1) {
+      const [keep, ...removeList] = duplicates;
+      const idsToRemove = removeList.map((d) => d._id);
+      await TrialLanding.deleteMany({ _id: { $in: idsToRemove } });
+    }
+
     const list = await TrialLanding.find({}, "_id title slug createdAt updatedAt").sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: list });
   } catch (error) {
@@ -300,6 +319,20 @@ export const updateTrialLandingSettings = async (req: Request, res: Response): P
       settings.ctaImagePublicId = uploaded.public_id;
     }
 
+    // 4. Curricula Image (Dubai Skyline)
+    if (files?.["curriculaImage"]?.[0]) {
+      if (settings.curriculaImagePublicId) {
+        try {
+          await cloudinary.uploader.destroy(settings.curriculaImagePublicId);
+        } catch (err) {
+          console.error("Failed to delete previous curricula image:", err);
+        }
+      }
+      const uploaded = await uploadToCloudinary(files["curriculaImage"][0]);
+      settings.curriculaImageUrl = uploaded.secure_url;
+      settings.curriculaImagePublicId = uploaded.public_id;
+    }
+
     await settings.save();
 
     res.status(200).json({
@@ -321,9 +354,12 @@ export const deleteTrialLanding = async (req: Request, res: Response): Promise<a
       return res.status(404).json({ success: false, message: "Landing page not found" });
     }
 
-    // If it's the default one, don't allow delete to prevent lockouts
+    // If it's the default one, only block deletion if it's the ONLY default page
     if (settings.slug === "trial-landing") {
-      return res.status(400).json({ success: false, message: "Default trial landing page cannot be deleted" });
+      const count = await TrialLanding.countDocuments({ slug: "trial-landing" });
+      if (count <= 1) {
+        return res.status(400).json({ success: false, message: "Default trial landing page cannot be deleted" });
+      }
     }
 
     // Cleanup images in Cloudinary
