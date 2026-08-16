@@ -46,6 +46,9 @@ const SettingsPage = () => {
         user?.twoFactorEnabled ??
         false;
 
+    const currentAdminEmail = user?.user?.email ?? "";
+    const isCurrentUserMaster = currentAdminEmail.toLowerCase().trim() === "imran.gauri@gmail.com";
+
     const fetchAdmins = async () => {
         if (!token) return;
         setLoadingAdmins(true);
@@ -432,7 +435,7 @@ const SettingsPage = () => {
                                             </td>
                                             <td className="px-6 py-4 text-right flex justify-end gap-2">
                                                 {/* Edit Admin Button */}
-                                                {(isSelf || admin.email?.toLowerCase() !== "imran.gauri@gmail.com") && (
+                                                {(isSelf || isCurrentUserMaster) && (
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"

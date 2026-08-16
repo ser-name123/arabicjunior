@@ -332,16 +332,21 @@ export const updateAdmin = async (req: AuthenticatedRequest, res: Response): Pro
     const { id } = req.params;
     const { email, password } = req.body;
 
+    const requester = await Admin.findById(req.adminId);
+    if (!requester) {
+      return res.status(401).json({ message: "Requester admin not found" });
+    }
+
+    const isMaster = requester.email && requester.email.toLowerCase().trim() === "imran.gauri@gmail.com";
+    const isSelf = req.adminId?.toString() === id;
+
+    if (!isSelf && !isMaster) {
+      return res.status(403).json({ message: "You can only edit your own account!" });
+    }
+
     const targetAdmin = await Admin.findById(id);
     if (!targetAdmin) {
       return res.status(404).json({ message: "Admin not found" });
-    }
-
-    // Security Check: If target is master admin, only they can update it
-    if (targetAdmin.email && targetAdmin.email.toLowerCase().trim() === "imran.gauri@gmail.com") {
-      if (req.adminId?.toString() !== targetAdmin._id.toString()) {
-        return res.status(403).json({ message: "Only the master administrator can edit their account!" });
-      }
     }
 
     // Validate email
