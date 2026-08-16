@@ -31,6 +31,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useState } from "react";
+import GoogleSignInButton from "./GoogleSignInButton";
 
 const loginFormSchema = z.object({
     email: z.string().email(),
@@ -157,7 +158,9 @@ export function AdminLoginFormV2({
                         </CardHeader>
                         <CardContent>
                             {step === "login" && (
-                                <Form {...loginForm}>
+                                <>
+                                    <GoogleSignInButton onBusyChange={setLoading} />
+                                    <Form {...loginForm}>
                                     <form onSubmit={loginForm.handleSubmit(onSubmit)}>
                                         <div className="flex flex-col gap-6">
                                             <FormField
@@ -221,15 +224,13 @@ export function AdminLoginFormV2({
                                                 <Button type="submit" size={'sm'} disabled={loading} className="w-full rounded-lg !text-sm">
                                                     {loading ? "Logging in..." : "Login"}
                                                 </Button>
-                                                <Button variant="outline" disabled size={'sm'} className="w-full rounded-lg !text-sm">
-                                                    Login with Google
-                                                </Button>
                                             </div>
                                         </div>
                                         {/* Removed Sign up link */}
                                     </form>
                                 </Form>
-                            )}
+                            </>
+                        )}
 
                             {step === 'otp' && (
                                 <Form {...otpForm}>

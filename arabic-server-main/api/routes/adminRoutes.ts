@@ -13,6 +13,7 @@ import {
   updateAdminPassword,
   verify2FA,
 } from "../controllers/adminControllers";
+import { googleAdminLogin } from "../controllers/googleAuthController";
 
 const router = express.Router();
 
@@ -31,6 +32,9 @@ router.post("/signup", authenticateAdmin, adminSignup);
 
 // ADMIN LOGIN --- POST
 router.post("/login", authLimiter, adminLogin);
+
+router.post("/google", authLimiter, googleAdminLogin);
+
 
 // UPDATE PASSWORD --- POST
 router.post("/update-password", authenticateAdmin, authLimiter, updateAdminPassword);

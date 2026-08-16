@@ -89,6 +89,7 @@ const SKIP_SANITIZE_KEYS = new Set([
   "tempToken",
   "masterKey",
   "code",
+  "credential",
 ]);
 
 const MAX_SANITIZE_DEPTH = 10;

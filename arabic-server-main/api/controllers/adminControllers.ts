@@ -3,7 +3,7 @@ import crypto from "crypto";
 import generateJwtToken from "../utils/generateJwtToken";
 import Admin from "../models/admin";
 import bcrypt from "bcryptjs";
-import { isProduction } from "..";
+import { setAuthCookie } from "../utils/authCookie";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import jwt from "jsonwebtoken";
@@ -161,8 +161,17 @@ export const adminLogin = async (req: Request, res: Response): Promise<any> => {
     // Password!" replies let anyone test which addresses have accounts.
     const INVALID = "Invalid email or password";
 
-    const adminUser = await Admin.findOne({ email });
+    const adminUser = await Admin.findOne({
+      email: typeof email === "string" ? email.toLowerCase().trim() : email,
+    });
     if (!adminUser) {
+      return res.status(401).json({ message: INVALID });
+    }
+
+    // A Google-only admin has no password. bcrypt.compare against undefined
+    // throws, which would turn this into a 500 and leak that the account
+    // exists; treat it as a plain failed login instead.
+    if (!adminUser.passwordHash) {
       return res.status(401).json({ message: INVALID });
     }
 
@@ -180,29 +189,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<any> => {
     }
 
     const token = await generateJwtToken({ adminId: adminUser._id.toString() });
-
-    // Mirror the token into a cookie. CLIENT_URL may hold a comma-separated
-    // list, so the cookie domain is derived from the first entry.
-    try {
-      const primaryOrigin = (process.env.CLIENT_URL as string).split(",")[0].trim();
-      const clientHostname = new URL(primaryOrigin).hostname;
-      const baseDomain = clientHostname.startsWith("www.")
-        ? clientHostname.substring(4)
-        : clientHostname;
-
-      res.cookie("jwtToken", token, {
-        domain: `.${baseDomain}`, // Leading dot for all subdomains
-        httpOnly: true, // never readable from JavaScript
-        secure: isProduction,
-        sameSite: isProduction ? "none" : "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // matches the token's 7d lifetime
-        path: "/",
-      });
-    } catch (cookieErr) {
-      // A malformed CLIENT_URL used to throw here and turn a valid login into
-      // a 500. The token in the response body is what the client actually uses.
-      console.error("Could not set auth cookie (check CLIENT_URL):", cookieErr);
-    }
+    setAuthCookie(res, token);
 
     res.status(200).json({ message: "Logged in successfully!", token: token });
   } catch (error) {
@@ -292,6 +279,14 @@ export const updateAdminPassword = async (
       return res.status(404).json({ message: "Admin not found" });
     }
 
+    // A Google-only admin has no password to replace. Setting one here would
+    // quietly open a second way into the account, so it is refused.
+    if (!admin.passwordHash) {
+      return res.status(400).json({
+        message: "This account signs in with Google and has no password to change",
+      });
+    }
+
     const isMatch = await bcrypt.compare(oldPassword, admin.passwordHash);
     if (!isMatch) {
       return res.status(400).json({ message: "Old password is incorrect" });
@@ -324,3 +319,4 @@ export const deleteAdmin = async (req: AuthenticatedRequest, res: Response): Pro
     res.status(500).json({ message: "Failed to delete admin" });
   }
 };
+
