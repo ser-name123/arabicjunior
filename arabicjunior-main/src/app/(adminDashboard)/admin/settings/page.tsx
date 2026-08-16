@@ -2,7 +2,7 @@
 import { Button } from '@/components/ui/button-2';
 import { Input } from '@/components/ui/input-2';
 import useAuthAdmin from '@/hooks/useAuthAdmin';
-import { KeyIcon, KeyRoundIcon, LockKeyhole, LockKeyholeOpen, Settings, X, Trash2, Plus, Users2 } from 'lucide-react'
+import { KeyIcon, KeyRoundIcon, LockKeyhole, LockKeyholeOpen, Settings, X, Trash2, Plus, Users2, Pencil } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner';
 import PasswordResetForm from '../components/PasswordResetForm';
@@ -25,6 +25,13 @@ const SettingsPage = () => {
     const [newAdminEmail, setNewAdminEmail] = useState("");
     const [newAdminPassword, setNewAdminPassword] = useState("");
     const [submittingAdmin, setSubmittingAdmin] = useState(false);
+
+    // Edit Admins state
+    const [showEditAdmin, setShowEditAdmin] = useState(false);
+    const [editingAdmin, setEditingAdmin] = useState<any>(null);
+    const [editEmail, setEditEmail] = useState("");
+    const [editPassword, setEditPassword] = useState("");
+    const [submittingEditAdmin, setSubmittingEditAdmin] = useState(false);
 
     const adminId =
         user?.adminId ??
@@ -114,6 +121,52 @@ const SettingsPage = () => {
                 console.error(error);
                 toast.error(error.message || "Failed to delete admin", { id: "delete-admin" });
             }
+        }
+    };
+
+    const openEditModal = (admin: any) => {
+        setEditingAdmin(admin);
+        setEditEmail(admin.email);
+        setEditPassword("");
+        setShowEditAdmin(true);
+    };
+
+    const handleEditAdmin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingAdmin || !token) return;
+        if (editPassword && editPassword.length < 12) {
+            toast.error("Password must be at least 12 characters");
+            return;
+        }
+        setSubmittingEditAdmin(true);
+        toast.loading("Updating administrator...", { id: "edit-admin" });
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/users/${editingAdmin._id}`, {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: editEmail,
+                    password: editPassword || undefined,
+                }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err?.message || "Failed to update administrator");
+            }
+            toast.success("Administrator updated successfully!", { id: "edit-admin" });
+            setEditEmail("");
+            setEditPassword("");
+            setEditingAdmin(null);
+            setShowEditAdmin(false);
+            fetchAdmins();
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.message || "Failed to update admin", { id: "edit-admin" });
+        } finally {
+            setSubmittingEditAdmin(false);
         }
     };
 
@@ -377,7 +430,18 @@ const SettingsPage = () => {
                                                     {admin.isTwoFactorEnabled ? 'Enabled' : 'Disabled'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
+                                            <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                                {/* Edit Admin Button */}
+                                                {(isSelf || admin.email?.toLowerCase() !== "imran.gauri@gmail.com") && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => openEditModal(admin)}
+                                                        className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 h-8 w-8"
+                                                    >
+                                                        <Pencil size={16} />
+                                                    </Button>
+                                                )}
                                                 {!isSelf && admin.email?.toLowerCase() !== "imran.gauri@gmail.com" && (
                                                     <Button
                                                         variant="ghost"
@@ -445,6 +509,60 @@ const SettingsPage = () => {
                                     className="bg-gradient-to-r from-[#FF60A8] to-[#FB6238] text-white font-semibold"
                                 >
                                     Add Admin
+                                </Button>
+                            </div>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Edit Admin Dialog */}
+                <Dialog open={showEditAdmin} onOpenChange={setShowEditAdmin}>
+                    <DialogContent className="max-w-md bg-white text-black p-6 rounded-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Edit Administrator</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleEditAdmin} className="space-y-4 pt-2">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-neutral-700">Email Address</label>
+                                <Input
+                                    type="email"
+                                    required
+                                    placeholder="admin@arabicjuniors.com"
+                                    value={editEmail}
+                                    onChange={(e) => setEditEmail(e.target.value)}
+                                    className="w-full text-sm h-10 py-2 px-3 border rounded-lg focus-within:border-pink-400 text-black"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-neutral-700">New Password (Optional)</label>
+                                <Input
+                                    type="password"
+                                    placeholder="Leave blank to keep current password"
+                                    value={editPassword}
+                                    onChange={(e) => setEditPassword(e.target.value)}
+                                    className="w-full text-sm h-10 py-2 px-3 border rounded-lg focus-within:border-pink-400 text-black"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-4">
+                                <Button
+                                    variant="outline"
+                                    type="button"
+                                    onClick={() => {
+                                        setShowEditAdmin(false);
+                                        setEditEmail("");
+                                        setEditPassword("");
+                                        setEditingAdmin(null);
+                                    }}
+                                    className="text-black border"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={submittingEditAdmin}
+                                    className="bg-gradient-to-r from-[#FF60A8] to-[#FB6238] text-white font-semibold"
+                                >
+                                    Save Changes
                                 </Button>
                             </div>
                         </form>

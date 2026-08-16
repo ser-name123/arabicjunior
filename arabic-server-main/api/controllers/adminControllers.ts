@@ -327,3 +327,60 @@ export const deleteAdmin = async (req: AuthenticatedRequest, res: Response): Pro
   }
 };
 
+export const updateAdmin = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const { email, password } = req.body;
+
+    const targetAdmin = await Admin.findById(id);
+    if (!targetAdmin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    // Security Check: If target is master admin, only they can update it
+    if (targetAdmin.email && targetAdmin.email.toLowerCase().trim() === "imran.gauri@gmail.com") {
+      if (req.adminId?.toString() !== targetAdmin._id.toString()) {
+        return res.status(403).json({ message: "Only the master administrator can edit their account!" });
+      }
+    }
+
+    // Validate email
+    if (email) {
+      if (typeof email !== "string" || !/^\S+@\S+\.\S+$/.test(email)) {
+        return res.status(400).json({ message: "A valid email is required" });
+      }
+      const lowerEmail = email.toLowerCase().trim();
+      
+      // Prevent other admins' email from being set to imran.gauri@gmail.com
+      if (lowerEmail === "imran.gauri@gmail.com" && targetAdmin.email.toLowerCase().trim() !== "imran.gauri@gmail.com") {
+        return res.status(403).json({ message: "Cannot hijack the master administrator email address" });
+      }
+
+      // Check if email already exists
+      if (lowerEmail !== targetAdmin.email.toLowerCase().trim()) {
+        const exists = await Admin.findOne({ email: lowerEmail });
+        if (exists) {
+          return res.status(400).json({ message: "User email already exists" });
+        }
+        targetAdmin.email = lowerEmail;
+      }
+    }
+
+    // Validate and hash password
+    if (password) {
+      if (typeof password !== "string" || password.length < 12) {
+        return res.status(400).json({ message: "Password must be at least 12 characters" });
+      }
+      const hash = await bcrypt.hash(password, 12);
+      targetAdmin.passwordHash = hash;
+    }
+
+    await targetAdmin.save();
+    res.status(200).json({ message: "Administrator updated successfully!" });
+  } catch (error) {
+    console.error("Update admin error:", error);
+    res.status(500).json({ message: "Failed to update administrator" });
+  }
+};
+
+
