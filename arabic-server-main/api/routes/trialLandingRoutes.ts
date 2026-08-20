@@ -5,7 +5,8 @@ import {
   getTrialLandingById, 
   createTrialLanding, 
   updateTrialLandingSettings, 
-  deleteTrialLanding 
+  deleteTrialLanding,
+  deleteManyTrialLandings
 } from "../controllers/trialLandingController";
 import { authenticateAdmin } from "../middleware/authMiddleware";
 import { imageUpload, handleUploadErrors } from "../config/upload";
@@ -42,6 +43,12 @@ router.put(
 );
 
 // Admin route to delete a page
+router.post(
+  "/admin/trial-landing/delete-many",
+  authenticateAdmin,
+  express.json(),
+  deleteManyTrialLandings
+);
 router.delete("/admin/trial-landing/:id", authenticateAdmin, deleteTrialLanding);
 
 export default router;

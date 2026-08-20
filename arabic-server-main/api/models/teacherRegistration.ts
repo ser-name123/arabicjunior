@@ -30,6 +30,7 @@ export interface TeacherRegistrationDocument extends mongoose.Document {
   introduce_yourself: string;
   fb_id: string;
   personal_image: string; // Cloudinary URL
+  personal_image_name?: string;
   education: string;
   teaching_experience: string;
   mother_lang: LangType;
@@ -38,6 +39,12 @@ export interface TeacherRegistrationDocument extends mongoose.Document {
   doc_2?: string;
   doc_3?: string;
   doc_4?: string;
+  // Cloudinary names every upload at random, so the file the candidate chose
+  // ("IGCSE Certificate.pdf") is lost unless we keep it ourselves.
+  doc_1_name?: string;
+  doc_2_name?: string;
+  doc_3_name?: string;
+  doc_4_name?: string;
   preferred_interview_time: "morning" | "afternoon" | "evening";
   expected_salary: number;
   work_hours: number;
@@ -72,6 +79,7 @@ const TeacherRegistrationSchema = new mongoose.Schema<TeacherRegistrationDocumen
     introduce_yourself: { type: String, required: true },
     fb_id: { type: String, required: true },
     personal_image: { type: String, required: true }, // Cloudinary URL
+    personal_image_name: { type: String },
     education: { type: String, required: true },
     teaching_experience: { type: String, required: true },
     mother_lang: { type: String, enum: langValues, required: true },
@@ -80,6 +88,10 @@ const TeacherRegistrationSchema = new mongoose.Schema<TeacherRegistrationDocumen
     doc_2: { type: String },
     doc_3: { type: String },
     doc_4: { type: String },
+    doc_1_name: { type: String },
+    doc_2_name: { type: String },
+    doc_3_name: { type: String },
+    doc_4_name: { type: String },
     preferred_interview_time: {
       type: String,
       enum: ["morning", "afternoon", "evening"],

@@ -35,6 +35,9 @@ import { Progress } from "@/components/ui/progress";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useCountryCode } from "@/hooks/useCountry";
+import Turnstile from "@/components/Turnstile";
+import { collectClientContext } from "@/lib/clientContext";
+import useTurnstile from "@/hooks/useTurnstile";
 
 const TIME_SLOTS = {
   timeFormat: "12-hour",
@@ -124,6 +127,7 @@ const MultiStepRegistrationForm = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const { next, prev, total, current, hasNext, hasPrev, isLast } = useSteps();
+  const captcha = useTurnstile();
 
   // form methods
   const methods = useForm<z.infer<typeof formSchema>>({
@@ -160,6 +164,11 @@ const MultiStepRegistrationForm = () => {
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!captcha.ready) {
+      toast.error(captcha.notReadyMessage);
+      return;
+    }
+
     try {
       // Now loading
       setIsLoading(true);
@@ -196,11 +205,18 @@ const payload = {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          turnstileToken: captcha.token,
+          // Read at submit rather than on mount: the viewport may have been
+          // resized, and the local clock should be the moment they sent it.
+          clientContext: collectClientContext(),
+        }),
       });
 
       if (!res.ok) {
-        throw new Error(`Registration response error: ${res.status}`);
+        const failure = await res.json().catch(() => null);
+        throw new Error(failure?.message || `Registration response error: ${res.status}`);
       }
 
       const serverResponse = await res.json();
@@ -217,8 +233,11 @@ const payload = {
       // redirect to welcome page after successful
       router.push("/register/thank-you");
     } catch (error) {
+      setIsLoading(false);
+      // The token is single-use; a retry needs a fresh challenge.
+      captcha.reset();
       // toast notification
-      toast.error("Something went wrong! Sorry for that.", {
+      toast.error(error instanceof Error && error.message ? error.message : "Something went wrong! Sorry for that.", {
         cancel: {
           label: "Cancel",
           onClick: () => { },
@@ -621,6 +640,18 @@ const payload = {
               </div>
               {/* SECOND STEP END */}
             </Steps>
+
+            {/* Only on the final step — there is nothing to protect until the
+                form is actually being sent, and a challenge solved on step one
+                would have expired by the time the visitor reached the end. */}
+            {isLast && (
+              <div className="mt-10 max-w-screen-sm ml-auto">
+                <Turnstile
+                  onVerify={captcha.onVerify}
+                  controlRef={captcha.controlRef}
+                />
+              </div>
+            )}
 
             <div className="navigation mt-14 flex items-center gap-x-4 max-w-screen-sm ml-auto">
               {hasPrev && (

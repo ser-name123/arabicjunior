@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
 import AnimateObserver from "@/components/AnimateObserver";
+import { buildPageMetadata } from "@/lib/seo";
 
 const interSans = Inter({
   variable: "--inter-sans",
@@ -11,7 +12,7 @@ const interSans = Inter({
   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
-export const metadata: Metadata = {
+const FALLBACK_METADATA: Metadata = {
   title: "Best Arabic Tuition Online | Affordable Arabic Language Classes for UAE Students & Dubai Schools",
   description: "Join expert-led Arabic tuition online in Dubai & UAE. Affordable one-to-one Arabic language classes for UAE students, schools & UAE curriculum. Book your class now.",
   alternates: {
@@ -165,4 +166,8 @@ export default function RootLayout({
       </body>
     </html>
   );
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildPageMetadata("home", FALLBACK_METADATA);
 }

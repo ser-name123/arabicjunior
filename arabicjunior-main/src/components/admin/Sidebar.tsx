@@ -19,6 +19,9 @@ import {
   Layout,
   Sparkles,
   BookOpen,
+  HelpCircle,
+  BadgeDollarSign,
+  Search,
 } from "lucide-react";
 import React, { useState } from "react";
 import Link from "next/link";
@@ -32,12 +35,12 @@ const menuItems = [
   { href: '/admin', label: "Home", icon: HomeIcon },
   {
     href: '/admin/users',
-    label: "Trial Users",
+    label: "Trial Students",
     icon: Users2Icon,
   },
   {
     href: "/admin/registered-users",
-    label: "Registered Users",
+    label: "Registered Students",
     icon: UserCheck2Icon,
   },
   {
@@ -99,6 +102,31 @@ const menuItems = [
     href: "/admin/about-juniors",
     label: "About Section",
     icon: BookOpen,
+  },
+  {
+    href: "/admin/faq-section",
+    label: "FAQ Section",
+    icon: HelpCircle,
+  },
+  {
+    href: "/admin/teachers-page",
+    label: "Teachers Page",
+    icon: GraduationCap,
+  },
+  {
+    href: "/admin/contact-section",
+    label: "Contact Page Section",
+    icon: MessageSquare,
+  },
+  {
+    href: "/admin/pricing-page",
+    label: "Pricing Page",
+    icon: BadgeDollarSign,
+  },
+  {
+    href: "/admin/seo",
+    label: "SEO Settings",
+    icon: Search,
   },
   {
     href: "/admin/contact",

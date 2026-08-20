@@ -32,6 +32,13 @@ export default {
 				foreground: 'var(--foreground)',
 				transparent: 'transparent',
 				white: '#FFFFFF',
+				// The brand's black. Not #000000 — pure black on white is harsh to
+				// read at body sizes, and this is the value the design calls for.
+				black: '#434343',
+				// True black, kept separately for modal backdrops. A scrim at
+				// #434343/80 is visibly washed out and stops separating the dialog
+				// from the page behind it, which is the only job it has.
+				scrim: '#000000',
 				orange: {
 					'100': '#FFEFEB',
 					'200': '#FEE0D7',
@@ -84,8 +91,11 @@ export default {
 					'500': '#848D9B',
 					'600': '#4A5463',
 					'700': '#343C48',
-					'800': '#1E242D',
-					'900': '#181D24'
+					// 800 and 900 were #1E242D and #181D24 — two near-blacks nobody
+					// could tell apart. Both now carry the brand black, so a heading
+					// and the line under it stay the same colour.
+					'800': '#434343',
+					'900': '#434343'
 				},
 				card: {
 					DEFAULT: "hsl(var(--card))",
@@ -135,6 +145,12 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				}
+			},
+			// `font-sans` must resolve to Inter, the font loaded in layout.tsx.
+			// Without this it falls back to Tailwind's system stack and silently
+			// overrides the Inter set on <body> in globals.css.
+			fontFamily: {
+				sans: ['var(--inter-sans)', 'sans-serif']
 			},
 			boxShadow: {
 				'3xl': '-8px 14px 56px 0px rgba(0, 0, 0, 0.10)'

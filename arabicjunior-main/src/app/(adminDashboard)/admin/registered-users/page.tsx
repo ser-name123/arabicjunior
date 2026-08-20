@@ -5,7 +5,7 @@ import { DataTable } from "@/components/admin/data-table"
 import { ColumnDef } from "@tanstack/react-table"
 import { Input } from "@/components/ui/input-2"
 import useAuthAdmin from "@/hooks/useAuthAdmin"
-import { Calendar1, FileSpreadsheet, Search, User, UserCheck2 } from "lucide-react"
+import { Calendar1, FileSpreadsheet, Search, Trash2, User, UserCheck2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { format } from "date-fns"
 import * as XLSX from "xlsx"
@@ -51,11 +51,18 @@ export default function UsersPage() {
     const [loading, setLoading] = useState(false)
     const [currentPage, setCurrentPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
+    const [total, setTotal] = useState(0)
     const [pageSize, setPageSize] = useState(10)
     const [selectedUser, setSelectedUser] = useState<User | null>(null)
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
     const [deletingUser, setDeletingUser] = useState<User | null>(null)
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
+
+    const [selectedRows, setSelectedRows] = useState<User[]>([])
+    /** Bumped after a delete or a page change to clear the ticked rows. */
+    const [selectionKey, setSelectionKey] = useState(0)
+    const [openBulkDialog, setOpenBulkDialog] = useState(false)
+    const [bulkDeleting, setBulkDeleting] = useState(false)
 
     // ⏳ Debounce search input
     useEffect(() => {
@@ -94,6 +101,7 @@ export default function UsersPage() {
             const data: any[] = json.data
             setData(data ?? [])
             setTotalPages(json.pagination?.totalPages || 1)
+            setTotal(json.pagination?.total ?? 0)
         } catch (err) {
             console.error("Error fetching Users:", err)
             setData([])
@@ -106,6 +114,55 @@ export default function UsersPage() {
     useEffect(() => {
         if (token) fetchData()
     }, [debouncedSearch, currentPage, pageSize, dateRange, token]) // ✅ use debouncedSearch, not raw search
+
+    // Ticks must not survive a page or filter change: the rows behind them are
+    // gone, and a later bulk delete would hit records nobody looked at.
+    useEffect(() => {
+        setSelectedRows([])
+        setSelectionKey((k) => k + 1)
+    }, [currentPage, pageSize, dateRange, debouncedSearch])
+
+    const handleBulkDelete = async () => {
+        if (!selectedRows.length || !token) return
+
+        setBulkDeleting(true)
+        try {
+            const res = await fetch(
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/registered-students/delete-many`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ ids: selectedRows.map((u) => u._id) }),
+                }
+            )
+            const json = await res.json().catch(() => null)
+            if (!res.ok) throw new Error(json?.message || "Failed to delete")
+
+            toast.success(json?.message || "Registrations deleted")
+
+            // The page may now be past the end — after deleting the only rows on
+            // page 4, staying there would show "No results".
+            const remaining = total - selectedRows.length
+            const lastPage = Math.max(1, Math.ceil(remaining / pageSize))
+            if (currentPage > lastPage) {
+                setCurrentPage(lastPage)
+            } else {
+                fetchData()
+            }
+
+            setSelectedRows([])
+            setSelectionKey((k) => k + 1)
+            setOpenBulkDialog(false)
+        } catch (error) {
+            console.error(error)
+            toast.error(error instanceof Error ? error.message : "Failed to delete")
+        } finally {
+            setBulkDeleting(false)
+        }
+    }
 
     const handleDeleteUser = async () => {
         if (!deletingUser || !token) return
@@ -125,6 +182,8 @@ export default function UsersPage() {
             toast.success("Registered student deleted successfully!", { id: "student-delete" })
             setOpenDeleteDialog(false)
             setDeletingUser(null)
+            setSelectedRows([])
+            setSelectionKey((k) => k + 1)
             fetchData()
         } catch (error) {
             console.error(error)
@@ -178,7 +237,7 @@ export default function UsersPage() {
             )
 
             const workbook = XLSX.utils.book_new()
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Registered Users")
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Registered Students")
             XLSX.writeFile(workbook, "registered_users.xlsx")
         } catch (error) {
             console.error("Export error:", error)
@@ -187,9 +246,17 @@ export default function UsersPage() {
     return (
         <div className="space-y-4">
             <div className="mb-7 flex items-center justify-between">
-                <h3 className="text-2xl font-semibold flex items-center gap-1">
+                <h3 className="text-2xl font-semibold flex items-center gap-2">
                     <UserCheck2 />
-                    Registered Users
+                    Registered Students
+                    <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-600">
+                        {total.toLocaleString()}
+                        {/* Says "found" when a search or date filter is on, so the
+                            number is never mistaken for the whole list. */}
+                        {debouncedSearch || dateRange?.from || dateRange?.to
+                            ? " found"
+                            : " total"}
+                    </span>
                 </h3>
 
             </div>
@@ -245,6 +312,17 @@ export default function UsersPage() {
                         </PopoverContent>
                     </Popover>
 
+                    {selectedRows.length > 0 && (
+                        <Button
+                            onClick={() => setOpenBulkDialog(true)}
+                            size={'sm'}
+                            variant={'destructive'}
+                            className="flex items-center gap-2 text-xs h-8"
+                        >
+                            <Trash2 size={16} /> Delete selected ({selectedRows.length})
+                        </Button>
+                    )}
+
                     <Button
                         onClick={handleExport}
                         size={'sm'}
@@ -269,6 +347,9 @@ export default function UsersPage() {
                     setPageSize(size)
                     setCurrentPage(1) // reset page when page size changes
                 }}
+                enableSelection
+                onSelectionChange={(rows) => setSelectedRows(rows as User[])}
+                selectionResetKey={selectionKey}
                 showActions={true} // ✅ enable actions
                 actions={['view', 'delete']}
                 onAction={(type, row) => {
@@ -404,6 +485,56 @@ export default function UsersPage() {
                                 className="bg-red-600 text-white hover:bg-red-700"
                             >
                                 Delete
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bulk Delete Confirmation. Names who is going, not just how many —
+                deleting a registration cannot be undone. */}
+            <Dialog open={openBulkDialog} onOpenChange={setOpenBulkDialog}>
+                <DialogContent className="max-w-md bg-white text-black p-6 rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Delete {selectedRows.length} registration
+                            {selectedRows.length === 1 ? "" : "s"}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <p className="text-sm text-neutral-500">
+                            This permanently removes the selected registrations. It cannot
+                            be undone.
+                        </p>
+
+                        <ul className="max-h-40 overflow-y-auto rounded-lg bg-muted/40 p-3 text-xs">
+                            {selectedRows.slice(0, 20).map((u) => (
+                                <li key={u._id} className="truncate">
+                                    {u.first_name} {u.last_name} &mdash; {u.email}
+                                </li>
+                            ))}
+                            {selectedRows.length > 20 && (
+                                <li className="pt-1 font-semibold">
+                                    …and {selectedRows.length - 20} more
+                                </li>
+                            )}
+                        </ul>
+
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                disabled={bulkDeleting}
+                                onClick={() => setOpenBulkDialog(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleBulkDelete}
+                                disabled={bulkDeleting}
+                                className="bg-red-600 text-white hover:bg-red-700"
+                            >
+                                {bulkDeleting ? "Deleting…" : "Delete"}
                             </Button>
                         </div>
                     </div>

@@ -5,6 +5,7 @@ import {
   getTrialUsers,
   updateTrialUserAttended,
   deleteTrialUser,
+  deleteManyTrialUsers,
 } from "../controllers/userRegistrationController";
 
 const router = express.Router();
@@ -19,6 +20,14 @@ const router = express.Router();
 router.get("/trial-users", authenticateAdmin, getTrialUsers);
 router.get("/trial-users/all", authenticateAdmin, getAllTrialUsers);
 router.patch("/trial-users/:id/attendance", authenticateAdmin, updateTrialUserAttended);
+// Bulk delete is a POST because the ids travel in the body, and a body on
+// DELETE is poorly supported by proxies and some HTTP clients.
+router.post(
+  "/trial-users/delete-many",
+  authenticateAdmin,
+  express.json(),
+  deleteManyTrialUsers
+);
 router.delete("/trial-users/:id", authenticateAdmin, deleteTrialUser);
 
 export default router;

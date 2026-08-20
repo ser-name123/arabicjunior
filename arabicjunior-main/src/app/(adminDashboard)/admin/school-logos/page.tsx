@@ -1,6 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button-2";
 import useAuthAdmin from "@/hooks/useAuthAdmin";
 import { toast } from "sonner";
 import { 
@@ -30,6 +37,10 @@ export default function SchoolLogosAdminPage() {
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [openBulkDialog, setOpenBulkDialog] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const fetchLogos = async () => {
     try {
@@ -127,6 +138,48 @@ export default function SchoolLogosAdminPage() {
     }
   };
 
+  const toggleOne = (id: string) =>
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+
+  const allSelected = logos.length > 0 && selectedIds.length === logos.length;
+
+  const toggleAll = () => setSelectedIds(allSelected ? [] : logos.map((logo) => logo._id));
+
+  const selectedLogos = logos.filter((logo) => selectedIds.includes(logo._id));
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length || !token) return;
+
+    setBulkDeleting(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/school-logos/delete-many`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ids: selectedIds }),
+        }
+      );
+      const result = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(result?.message || "Failed to delete");
+
+      toast.success(result?.message || "Logos deleted");
+      setSelectedIds([]);
+      setOpenBulkDialog(false);
+      fetchLogos();
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Failed to delete the logos");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this school logo?")) return;
 
@@ -141,6 +194,7 @@ export default function SchoolLogosAdminPage() {
       const result = await res.json();
       if (res.ok) {
         toast.success(result.message || "Logo deleted successfully!");
+        setSelectedIds((prev) => prev.filter((item) => item !== id));
         fetchLogos();
       } else {
         toast.error(result.message || "Failed to delete logo");
@@ -269,6 +323,30 @@ export default function SchoolLogosAdminPage() {
             Uploaded Logos ({logos.length})
           </h2>
 
+          {logos.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  aria-label="Select all logos"
+                  className="h-4 w-4 cursor-pointer accent-orange-500"
+                />
+                Select all
+              </label>
+
+              {selectedIds.length > 0 && (
+                <button
+                  onClick={() => setOpenBulkDialog(true)}
+                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" /> Delete selected ({selectedIds.length})
+                </button>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
@@ -285,10 +363,28 @@ export default function SchoolLogosAdminPage() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
               {logos.map((logo) => (
-                <div 
-                  key={logo._id} 
-                  className="group relative border rounded-xl p-4 flex flex-col items-center justify-center bg-[#F8FAFC] hover:shadow-md transition-all duration-300"
+                <div
+                  key={logo._id}
+                  className={`group relative border rounded-xl p-4 flex flex-col items-center justify-center hover:shadow-md transition-all duration-300 ${
+                    selectedIds.includes(logo._id)
+                      ? "bg-orange-50 border-orange-300"
+                      : "bg-[#F8FAFC]"
+                  }`}
                 >
+                  {/* Stays visible once anything is ticked — a checkbox that
+                      only appears on hover is unusable on a touch screen and
+                      impossible to scan. */}
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(logo._id)}
+                    onChange={() => toggleOne(logo._id)}
+                    aria-label={`Select ${logo.name}`}
+                    className={`absolute top-2 left-2 h-4 w-4 cursor-pointer accent-orange-500 transition-opacity ${
+                      selectedIds.length > 0
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-100"
+                    }`}
+                  />
                   <div className="relative w-20 h-20 mb-3 flex items-center justify-center overflow-hidden rounded-lg bg-white p-2 border">
                     <Image
                       src={logo.logoUrl}
@@ -316,6 +412,57 @@ export default function SchoolLogosAdminPage() {
           )}
         </div>
       </div>
+
+      {/* Bulk delete confirmation. Names the schools, not just the count —
+          each logo also disappears from the homepage carousel. */}
+      <Dialog open={openBulkDialog} onOpenChange={setOpenBulkDialog}>
+        <DialogContent className="max-w-md bg-white text-black">
+          <DialogHeader>
+            <DialogTitle>
+              Delete {selectedIds.length} logo{selectedIds.length === 1 ? "" : "s"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-neutral-500">
+              They will be removed from the homepage carousel along with their
+              image files. This cannot be undone.
+            </p>
+
+            <ul className="max-h-40 overflow-y-auto rounded-lg bg-neutral-50 border p-3 text-xs">
+              {selectedLogos.slice(0, 20).map((logo) => (
+                <li key={logo._id} className="truncate">
+                  {logo.name}
+                </li>
+              ))}
+              {selectedLogos.length > 20 && (
+                <li className="pt-1 font-semibold">
+                  …and {selectedLogos.length - 20} more
+                </li>
+              )}
+            </ul>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                disabled={bulkDeleting}
+                onClick={() => setOpenBulkDialog(false)}
+                className="text-black border"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                {bulkDeleting ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

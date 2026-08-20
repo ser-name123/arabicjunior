@@ -29,7 +29,8 @@ export const updateFooterSettings = async (req: Request, res: Response): Promise
       phoneLink,
       email,
       location,
-      copyright
+      copyright,
+      seoKeywords,
     } = req.body;
 
     let settings = await FooterSettings.findOne();
@@ -47,6 +48,18 @@ export const updateFooterSettings = async (req: Request, res: Response): Promise
     if (email !== undefined) settings.email = email;
     if (location !== undefined) settings.location = location;
     if (copyright !== undefined) settings.copyright = copyright;
+
+    // Sent as an array from the admin screen; also accept a comma separated
+    // string so the field can be updated from a simple form or a script.
+    if (seoKeywords !== undefined) {
+      const parsed =
+        typeof seoKeywords === "string" ? seoKeywords.split(",") : seoKeywords;
+      if (Array.isArray(parsed)) {
+        settings.seoKeywords = parsed
+          .map((k: unknown) => String(k).trim())
+          .filter(Boolean);
+      }
+    }
 
     await settings.save();
 

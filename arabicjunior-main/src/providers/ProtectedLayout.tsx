@@ -1,6 +1,7 @@
 "use client";
 
 import useAuthAdmin from "@/hooks/useAuthAdmin";
+import IdleLogout from "@/components/admin/IdleLogout";
 
 const ProtectedLayout = ({
   children,
@@ -17,7 +18,14 @@ const ProtectedLayout = ({
     return null;
   }
 
-  return children;
+  return (
+    <>
+      {/* Mounted here rather than in a page so the timer covers every admin
+          screen, and only starts once there is a session to protect. */}
+      <IdleLogout />
+      {children}
+    </>
+  );
 };
 
 export default ProtectedLayout;

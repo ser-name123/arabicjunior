@@ -536,7 +536,7 @@ export default function TrialLandingPage({ params }: { params: Promise<{ slug: s
 
               {/* Headings */}
               <div className="space-y-2">
-                <h1 className="text-[38px] sm:text-[46px] lg:text-[52px] xl:text-[56px] font-black text-[#0F172A] leading-[1.06] tracking-[-0.025em]">
+                <h1 className="text-[38px] sm:text-[46px] lg:text-[52px] xl:text-[56px] font-black text-black leading-[1.06] tracking-[-0.025em]">
                   {heroHeading}<br />
                   <span className="bg-gradient-to-r from-[#FB6238] to-[#FF8159] bg-clip-text text-transparent">{heroHeadingHighlight}</span> Potential
                 </h1>
@@ -1016,7 +1016,7 @@ export default function TrialLandingPage({ params }: { params: Promise<{ slug: s
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
-                      <span className="text-[13.5px] sm:text-[14.5px] font-bold text-[#0F172A] leading-tight font-sans">{bullet}</span>
+                      <span className="text-[13.5px] sm:text-[14.5px] font-bold text-black leading-tight font-sans">{bullet}</span>
                     </div>
                   ))}
                 </div>
@@ -1102,13 +1102,13 @@ export default function TrialLandingPage({ params }: { params: Promise<{ slug: s
           <div className="bg-[#1b3472] rounded-[18px] p-6 md:p-8 text-white relative overflow-hidden shadow-[0_8px_30px_rgba(27,52,114,0.18)] flex flex-col lg:flex-row items-center justify-between gap-6 min-h-[160px] md:min-h-[180px]">
             
             {/* Background Floating Arabic Letters */}
-            <span className="absolute top-3 left-10 text-white/10 text-4xl font-bold font-serif pointer-events-none select-none z-0">
+            <span className="absolute top-3 left-10 text-white/10 text-4xl font-bold pointer-events-none select-none z-0">
               ن
             </span>
-            <span className="absolute top-1/3 right-12 text-white/10 text-4xl font-bold font-serif pointer-events-none select-none z-0">
+            <span className="absolute top-1/3 right-12 text-white/10 text-4xl font-bold pointer-events-none select-none z-0">
               ذ
             </span>
-            <span className="absolute bottom-4 right-6 text-white/10 text-5xl font-bold font-serif pointer-events-none select-none z-0">
+            <span className="absolute bottom-4 right-6 text-white/10 text-5xl font-bold pointer-events-none select-none z-0">
               ن
             </span>
 

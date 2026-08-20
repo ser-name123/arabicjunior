@@ -262,3 +262,95 @@ export const deleteTeacher = async (req: Request, res: Response): Promise<any> =
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * Delete several teachers at once.
+ *
+ * A POST rather than a DELETE because the ids travel in the body, and a body on
+ * DELETE is poorly supported by proxies and some HTTP clients.
+ */
+export const deleteManyTeachers = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: "No teachers selected" });
+    }
+
+    // Guard against a runaway request clearing the roster. The admin screen
+    // sends at most one page of rows, so this is far above normal use.
+    if (ids.length > 200) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Too many at once. Select up to 200." });
+    }
+
+    const teachers = await Teacher.find({ _id: { $in: ids } });
+
+    // A teacher carries up to two Cloudinary images. The single delete removes
+    // both; skipping it here would strand two files per teacher deleted this
+    // way, costing storage nobody can trace back.
+    const assets: UploadedAsset[] = [];
+    for (const teacher of teachers) {
+      if (teacher.imagePublicId) {
+        assets.push({
+          public_id: teacher.imagePublicId,
+          secure_url: teacher.image,
+          resource_type: "image",
+        });
+      }
+      if (teacher.portraitPublicId) {
+        assets.push({
+          public_id: teacher.portraitPublicId,
+          secure_url: teacher.portrait ?? "",
+          resource_type: "image",
+        });
+      }
+    }
+
+    const result = await Teacher.deleteMany({ _id: { $in: ids } });
+
+    // destroyQuietly swallows its own failures on purpose: a stranded image is
+    // untidy, but it must not turn a completed delete into an error.
+    await destroyQuietly(assets);
+
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} teacher(s) deleted`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error: any) {
+    console.error("Error deleting teachers:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Every teacher for the admin export, drafts included and without paging.
+ *
+ * Separate from getPublishedTeachers, which the public pages use — an export
+ * that silently dropped every unpublished profile would be misleading.
+ */
+export const exportTeachers = async (req: Request, res: Response) => {
+  try {
+    const { search = "" } = req.query;
+
+    let filter: Record<string, unknown> = {};
+    if (typeof search === "string" && search.trim() !== "") {
+      const regex = containsRegex(search);
+      filter = { $or: [{ name: regex }, { profession: regex }, { subject: regex }] };
+    }
+
+    const teachers = await Teacher.find(filter).sort({ order: 1, createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: "success",
+      data: teachers,
+      total: teachers.length,
+    });
+  } catch (error: any) {
+    console.error("Error exporting teachers:", error);
+    res.status(500).json({ success: false, message: "Could not export teachers" });
+  }
+};

@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import React from "react";
+import { buildPageMetadata } from "@/lib/seo";
 
 
-export const metadata: Metadata = {
+const FALLBACK_METADATA: Metadata = {
     title: "Private Online Arabic Tutor for UAE Students & Kids",
     description: "Learn Arabic with an online Arabic tutor for Indian expats in UAE. Private Arabic tuition for kids and students with flexible online classes.Book now.",
     alternates: {
@@ -29,3 +30,7 @@ const layout = async ({ children }: { children: React.ReactNode }) => {
 };
 
 export default layout;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildPageMetadata("our-teachers", FALLBACK_METADATA);
+}

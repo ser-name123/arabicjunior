@@ -19,7 +19,7 @@ const Marquee = () => {
   return (
     <section 
       aria-label="academic-focus-marquee" 
-      className="relative w-full overflow-hidden bg-gradient-to-r from-[#FF60A8] via-[#FB6238] to-[#F5AE14] py-5 shadow-lg my-6 sm:my-10"
+      className="relative w-full overflow-hidden bg-gradient-to-r from-[#FF60A8] via-[#FB6238] to-[#F5AE14] py-5 shadow-lg mb-6 sm:mb-10"
     >
       {/* Side gradient overlays to fade the text smoothly at the edges */}
       <div 

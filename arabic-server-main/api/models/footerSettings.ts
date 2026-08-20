@@ -11,6 +11,8 @@ export interface FooterSettingsDocument extends Document {
   email: string;
   location: string;
   copyright: string;
+  /** Keyword strip above the copyright line, for local search terms. */
+  seoKeywords: string[];
 }
 
 const footerSettingsSchema = new Schema<FooterSettingsDocument>(
@@ -27,7 +29,20 @@ const footerSettingsSchema = new Schema<FooterSettingsDocument>(
     phoneLink: { type: String, default: "https://wa.me/971505344645?text=Hello!%20I'm%20interested%20in%20enrolling%20in%20Arabic%20tuition%20classes.%20Please%20get%20in%20touch%20with%20me." },
     email: { type: String, default: "hello@arabicjuniors.com" },
     location: { type: String, default: "Dubai - United Arab Emirates" },
-    copyright: { type: String, default: "©2026 www.arabicjuniors.com | All Rights Reserved by The Learning Hub FZE LLC" }
+    copyright: { type: String, default: "©2026 www.arabicjuniors.com | All Rights Reserved by The Learning Hub FZE LLC" },
+    seoKeywords: {
+      type: [String],
+      default: [
+        "Arabic Classes Online",
+        "Arabic Language Centre Dubai",
+        "Online Arabic Classes",
+        "Arabic Classes Dubai",
+        "Arabic Lessons Dubai",
+        "Arabic Language Course",
+        "Learn Arabic Dubai",
+        "Learn Arabic in Dubai",
+      ],
+    }
   },
   { timestamps: true }
 );

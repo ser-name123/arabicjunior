@@ -47,7 +47,7 @@ const HeaderNav: React.FC<HeaderNavProps> = ({
                 >
                   {item.subMenu.map((sub, index) => (
                     <li aria-describedby="sub-item" key={index} className="flex items-start w-full" onClick={handleItemClick}>
-                      <Link href={sub.url} className="text-sm flex items-center font-normal text-neutral-600 w-full transition-colors ease-in-out duration-300 hover:text-orange-500">{sub.label}</Link>
+                      <Link href={sub.url} className="text-base whitespace-nowrap flex items-center font-normal text-neutral-600 w-full transition-colors ease-in-out duration-300 hover:text-orange-500">{sub.label}</Link>
                     </li>
                   ))}
                 </ul>

@@ -36,6 +36,8 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarIcon, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
+import Turnstile from "@/components/Turnstile";
+import useTurnstile from "@/hooks/useTurnstile";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format, parse } from "date-fns";
@@ -233,6 +235,7 @@ const TeacherMultiStepForm = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const { next, prev, total, current, hasNext, hasPrev, isLast } = useSteps();
+  const captcha = useTurnstile();
   const [countryCodes, setCountryCodes] = React.useState<{ code: string; country: string }[]>([]);
 
   // form methods
@@ -312,6 +315,11 @@ const TeacherMultiStepForm = () => {
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!captcha.ready) {
+      toast.error(captcha.notReadyMessage);
+      return;
+    }
+
     setIsLoading(true);
 
     const formData = new FormData();
@@ -359,6 +367,7 @@ const TeacherMultiStepForm = () => {
     formData.append("what_make_ideal", values.what_make_ideal);
     formData.append("how_find_us", values.how_find_us);
     formData.append("declaration", values.declaration ? "true" : "false");
+    if (captcha.token) formData.append("turnstileToken", captcha.token);
 
     try {
       const res = await fetch(
@@ -370,11 +379,24 @@ const TeacherMultiStepForm = () => {
       );
 
       const info = await res.json();
-      console.log(info);
-      toast.success(info?.message || "Something wrong!");
+
+      // res.ok was never checked here, so a rejected application still showed a
+      // success toast and sent the applicant to the thank-you page.
+      if (!res.ok) {
+        throw new Error(info?.message || `Submission failed (${res.status})`);
+      }
+
+      toast.success(info?.message || "Application received!");
       setIsLoading(false);
       router.push("/teacher-registration/thank-you");
     } catch (error) {
+      setIsLoading(false);
+      captcha.reset();
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Something went wrong. Please try again."
+      );
       console.log("Teacher registration failed", error);
     }
   };
@@ -1289,6 +1311,15 @@ const TeacherMultiStepForm = () => {
               </div>
               {/* THIRD STEP END */}
             </Steps>
+
+            {isLast && (
+              <div className="mt-10 max-w-screen-sm ml-auto">
+                <Turnstile
+                  onVerify={captcha.onVerify}
+                  controlRef={captcha.controlRef}
+                />
+              </div>
+            )}
 
             <div className="navigation mt-14 flex items-center gap-x-4 max-w-screen-sm ml-auto">
               {hasPrev && (

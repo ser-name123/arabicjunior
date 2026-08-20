@@ -14,6 +14,7 @@ import {
   type CarouselApi,
 } from "../ui/carousel";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
+import { cn } from "@/lib/utils";
 import type { Testimonial } from "@/types/Testimonial";
 
 /**
@@ -21,11 +22,18 @@ import type { Testimonial } from "@/types/Testimonial";
  * component that fetches the records, so the cards are present in the HTML
  * Google receives — the reviews are worth indexing, and they were server
  * rendered before this section moved to the database.
+ *
+ * The parent renders one of these per format. Each card still picks its own
+ * layout from `type`, so a list that happens to be mixed keeps working.
+ *
+ * @param name distinguishes the two carousels on a page for screen readers.
  */
 const TestimonialCarousel = ({
   testimonials,
+  name = "testimonial",
 }: {
   testimonials: Testimonial[];
+  name?: string;
 }) => {
   const [playing, setPlaying] = useState<Testimonial | null>(null);
   const [api, setApi] = useState<CarouselApi>();
@@ -52,6 +60,17 @@ const TestimonialCarousel = ({
     setPlaying(testimonial);
   }, []);
 
+  // Splitting the reviews by format leaves each carousel with fewer cards, and
+  // embla packs whatever it has against the left edge. A single review at a
+  // third of the width reads as a layout bug, so short lists take a wider card
+  // and get centred.
+  const basis =
+    testimonials.length === 1
+      ? "basis-full sm:basis-2/3 lg:basis-1/2"
+      : testimonials.length === 2
+      ? "basis-full sm:basis-1/2"
+      : "basis-full sm:basis-1/2 lg:basis-1/3";
+
   return (
     <React.Fragment>
       <Carousel
@@ -66,11 +85,16 @@ const TestimonialCarousel = ({
         ]}
         className="w-full"
       >
-        <CarouselContent className="-ml-4 py-2 items-stretch">
+        <CarouselContent
+          className={cn(
+            "-ml-4 py-2 items-stretch",
+            testimonials.length < 3 && "justify-center"
+          )}
+        >
           {testimonials.map((testimonial) => (
             <CarouselItem
               key={testimonial._id}
-              className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3"
+              className={cn("pl-4", basis)}
             >
               {testimonial.type === "video" ? (
                 <VideoCard
@@ -84,20 +108,28 @@ const TestimonialCarousel = ({
           ))}
         </CarouselContent>
 
-        <CarouselPrevious className="hidden sm:flex -left-4" />
-        <CarouselNext className="hidden sm:flex -right-4" />
+        {/* Once the reviews are split by format a carousel can hold a single
+            card, and arrows either side of something that cannot move look
+            broken. slideCount comes from embla, so this follows the real
+            breakpoint rather than a guess at how many fit. */}
+        {slideCount > 1 && (
+          <React.Fragment>
+            <CarouselPrevious className="hidden sm:flex -left-4" />
+            <CarouselNext className="hidden sm:flex -right-4" />
+          </React.Fragment>
+        )}
       </Carousel>
 
       {slideCount > 1 && (
         <div
-          aria-label="reviews-carousel-dots"
+          aria-label={`${name}-carousel-dots`}
           className="flex items-center justify-center gap-2 pt-8"
         >
           {Array.from({ length: slideCount }).map((_, index) => (
             <button
               key={index}
               type="button"
-              aria-label={`Go to testimonial ${index + 1}`}
+              aria-label={`Go to ${name} ${index + 1}`}
               aria-current={index === selected}
               onClick={() => api?.scrollTo(index)}
               className={`h-2 rounded-full transition-all duration-300 ${
@@ -189,7 +221,7 @@ const TextCard = ({ testimonial }: { testimonial: Testimonial }) => (
 
     <p
       aria-label="review-text"
-      className="text-base sm:text-lg font-normal text-neutral-900"
+      className="text-base sm:text-lg font-normal text-neutral-900 line-clamp-4"
     >
       {testimonial.comment}
     </p>
@@ -228,7 +260,7 @@ const VideoCard = ({
           <span className="absolute inset-0 bg-gradient-to-br from-[#FB6238] to-[#F5AE14]" />
         )}
 
-        <span className="absolute inset-0 bg-black/25 transition-colors duration-300 group-hover:bg-black/35" />
+        <span className="absolute inset-0 bg-scrim/25 transition-colors duration-300 group-hover:bg-scrim/35" />
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="flex items-center justify-center w-14 h-14 rounded-full bg-white/95 shadow-lg transition-transform duration-300 group-hover:scale-110">
             <Play className="w-6 h-6 text-orange-500 fill-orange-500 translate-x-0.5" />
@@ -247,7 +279,7 @@ const VideoCard = ({
       {testimonial.comment && (
         <p
           aria-label="review-text"
-          className="text-base font-normal text-neutral-900"
+          className="text-base font-normal text-neutral-900 line-clamp-4"
         >
           {testimonial.comment}
         </p>
@@ -264,7 +296,7 @@ const VideoDialog = ({
   onClose: () => void;
 }) => (
   <Dialog open={Boolean(testimonial)} onOpenChange={(open) => !open && onClose()}>
-    <DialogContent className="max-w-3xl p-0 overflow-hidden bg-black border-none">
+    <DialogContent className="max-w-3xl p-0 overflow-hidden bg-scrim border-none">
       {/* Required for the dialog to be announced; the video itself is the
           visible content, so the title is kept off-screen. */}
       <DialogTitle className="sr-only">

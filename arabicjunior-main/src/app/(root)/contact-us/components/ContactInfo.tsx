@@ -64,7 +64,7 @@ const ContactInfo = () => {
                 >
                   {contact.icon}
                 </span>
-                <span className="text-lg font-semibold text-[#0F172A] flex-1 select-all">
+                <span className="text-lg font-semibold text-black flex-1 select-all">
                   {contact.label}
                 </span>
               </li>

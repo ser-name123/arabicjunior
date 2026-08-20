@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
-import { Check, Plus, Settings2, Tags, X } from "lucide-react";
+import { Check, Plus, Settings2, Tags, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/admin/data-table";
@@ -38,7 +38,14 @@ export default function PricingPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(20);
+
+  const [selectedRows, setSelectedRows] = useState<PricingPlan[]>([]);
+  /** Bumped after a delete or a page change to clear the ticked rows. */
+  const [selectionKey, setSelectionKey] = useState(0);
+  const [openBulkDialog, setOpenBulkDialog] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const fetchAll = useCallback(async () => {
     if (!token) return;
@@ -63,6 +70,7 @@ export default function PricingPage() {
 
       setPlans(plansJson.data ?? []);
       setTotalPages(plansJson.pagination?.totalPages || 1);
+      setTotal(plansJson.pagination?.total ?? 0);
       setGroups(groupsJson.data ?? []);
     } catch (err) {
       console.error(err);
@@ -167,6 +175,56 @@ export default function PricingPage() {
     },
   ];
 
+  // Ticks must not survive a page change: the rows behind them are gone, and a
+  // later bulk delete would hit plans nobody looked at.
+  useEffect(() => {
+    setSelectedRows([]);
+    setSelectionKey((key) => key + 1);
+  }, [currentPage, pageSize]);
+
+  const handleBulkDelete = async () => {
+    if (!selectedRows.length || !token) return;
+
+    setBulkDeleting(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/pricing/plans/delete-many`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ids: selectedRows.map((row) => row._id) }),
+        }
+      );
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.message || "Failed to delete");
+
+      await revalidateContent(token);
+      toast.success(json?.message || "Plans deleted");
+
+      // The page may now be past the end — after deleting the only rows on the
+      // last page, staying there would show "No results".
+      const remaining = total - selectedRows.length;
+      const lastPage = Math.max(1, Math.ceil(remaining / pageSize));
+      if (currentPage > lastPage) {
+        setCurrentPage(lastPage);
+      } else {
+        fetchAll();
+      }
+
+      setSelectedRows([]);
+      setSelectionKey((key) => key + 1);
+      setOpenBulkDialog(false);
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const handleDelete = async () => {
     try {
       toast.loading("Deleting plan...", { id: "plan-delete" });
@@ -187,6 +245,8 @@ export default function PricingPage() {
       toast.success("Plan deleted successfully!", { id: "plan-delete" });
       setOpenDialog(false);
       setDeleting(null);
+      setSelectedRows([]);
+      setSelectionKey((key) => key + 1);
       fetchAll();
     } catch (err) {
       console.error(err);
@@ -199,6 +259,9 @@ export default function PricingPage() {
       <div className="flex justify-between items-center">
         <h3 className="text-2xl font-semibold flex items-center gap-2">
           <Tags /> Pricing
+          <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-600">
+            {total.toLocaleString()} total
+          </span>
         </h3>
       </div>
 
@@ -207,7 +270,18 @@ export default function PricingPage() {
         plans are shown to visitors.
       </p>
 
-      <div className="flex justify-end items-center gap-2">
+      <div className="flex flex-wrap justify-end items-center gap-2">
+        {selectedRows.length > 0 && (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setOpenBulkDialog(true)}
+            className="h-8 gap-2 text-xs mr-auto"
+          >
+            <Trash2 size={16} /> Delete selected ({selectedRows.length})
+          </Button>
+        )}
+
         <Button
           size="sm"
           variant="outline"
@@ -237,6 +311,9 @@ export default function PricingPage() {
           setPageSize(size);
           setCurrentPage(1);
         }}
+        enableSelection
+        onSelectionChange={(rows) => setSelectedRows(rows as PricingPlan[])}
+        selectionResetKey={selectionKey}
         showActions={true}
         actions={["edit", "delete"]}
         onAction={(type, row) => {
@@ -278,6 +355,56 @@ export default function PricingPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk delete confirmation. Names the plans, not just the count — these
+          are the cards visitors see and prices they are quoted. */}
+      <Dialog open={openBulkDialog} onOpenChange={setOpenBulkDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Delete {selectedRows.length} plan
+              {selectedRows.length === 1 ? "" : "s"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-neutral-500">
+              These cards will disappear from the pricing page. This cannot be
+              undone.
+            </p>
+
+            <ul className="max-h-40 overflow-y-auto rounded-lg bg-muted/40 p-3 text-xs">
+              {selectedRows.slice(0, 20).map((row) => (
+                <li key={row._id} className="truncate">
+                  {row.title} &mdash; {row.currency} {row.price}
+                </li>
+              ))}
+              {selectedRows.length > 20 && (
+                <li className="pt-1 font-semibold">
+                  …and {selectedRows.length - 20} more
+                </li>
+              )}
+            </ul>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                disabled={bulkDeleting}
+                onClick={() => setOpenBulkDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+              >
+                {bulkDeleting ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

@@ -29,6 +29,8 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import Turnstile from "@/components/Turnstile";
+import useTurnstile from "@/hooks/useTurnstile";
 import Link from "next/link";
 import { useState } from "react";
 import GoogleSignInButton from "./GoogleSignInButton";
@@ -52,6 +54,7 @@ export function AdminLoginFormV2({
     const [loading, setLoading] = useState(false)
     const [code, setCode] = useState("")
     const [showPassword, setShowPassword] = useState(false)
+    const captcha = useTurnstile();
 
     // 1. Define your form.
     const loginForm = useForm<z.infer<typeof loginFormSchema>>({
@@ -71,6 +74,11 @@ export function AdminLoginFormV2({
 
     // 2. Define a submit handler.
     async function onSubmit(values: z.infer<typeof loginFormSchema>) {
+        if (!captcha.ready) {
+            toast.error(captcha.notReadyMessage)
+            return
+        }
+
         setLoading(true)
         try {
             const res = await fetch(
@@ -81,13 +89,16 @@ export function AdminLoginFormV2({
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify(values),
+                    body: JSON.stringify({ ...values, turnstileToken: captcha.token }),
                 }
             );
 
             if (!res.ok) {
-                // notify user
-                toast("Incorrect password and email");
+                // A rejected captcha and a wrong password both land here, and telling
+                // someone their password is wrong when it was the captcha sends
+                // them round in circles.
+                const failure = await res.json().catch(() => null);
+                toast.error(failure?.message || "Incorrect password and email");
                 loginForm.reset();
                 return;
             }
@@ -112,6 +123,8 @@ export function AdminLoginFormV2({
         } finally {
             setLoading(false)
             loginForm.reset()
+            // The token is spent on every attempt, successful or not.
+            captcha.reset()
             // otpForm.reset()
         }
     }
@@ -220,6 +233,11 @@ export function AdminLoginFormV2({
                                                     </FormItem>
                                                 )}
                                             />
+                                            <Turnstile
+                                                onVerify={captcha.onVerify}
+                                                controlRef={captcha.controlRef}
+                                            />
+
                                             <div className="flex flex-col gap-3">
                                                 <Button type="submit" size={'sm'} disabled={loading} className="w-full rounded-lg !text-sm">
                                                     {loading ? "Logging in..." : "Login"}

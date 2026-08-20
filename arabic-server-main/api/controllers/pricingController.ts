@@ -352,6 +352,36 @@ export const updatePricingPlan = async (req: Request, res: Response): Promise<an
   }
 };
 
+/** POST: Delete several pricing plans at once (Admin Only). */
+export const deleteManyPricingPlans = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: "No plans selected" });
+    }
+
+    // An upper bound so one malformed request cannot wipe the list.
+    if (ids.length > 200) {
+      return res.status(400).json({
+        success: false,
+        message: "Please delete at most 200 plans at a time",
+      });
+    }
+
+    const result = await PricingPlan.deleteMany({ _id: { $in: ids } });
+
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} plan(s) deleted successfully!`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Error deleting pricing plans:", error);
+    res.status(500).json({ success: false, message: "Failed to delete the plans" });
+  }
+};
+
 export const deletePricingPlan = async (req: Request, res: Response): Promise<any> => {
   try {
     const plan = await PricingPlan.findById(req.params.id);

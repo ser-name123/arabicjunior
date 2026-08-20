@@ -43,7 +43,7 @@ const DeliverResult = () => {
       >
         <div className="container">
           <div aria-label="deliver-content">
-            <Reveal as="h3" variant="up" className="text-3xl leading-tight sm:text-5xl sm:leading-tight font-bold text-neutral-950 text-center mb-11">
+            <Reveal as="h3" variant="up" className="text-3xl leading-tight sm:text-5xl sm:leading-tight font-bold text-black text-center mb-11">
               Programs designed to{" "}
               <span className="text-orange-500">Deliver Results</span>
             </Reveal>

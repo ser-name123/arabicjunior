@@ -7,6 +7,8 @@ import {
     deleteBlog,
     getBlogById,
     getAllBlogs,
+    deleteManyBlogs,
+    exportBlogs,
 } from "../controllers/blogController";
 import { authenticateAdmin } from "../middleware/authMiddleware";
 import { imageUpload, handleUploadErrors } from "../config/upload";
@@ -28,6 +30,10 @@ router.post("/admin/blogs", authenticateAdmin, uploadMiddleware, handleUploadErr
 router.get("/admin/blogs", authenticateAdmin, getBlogs);
 router.put("/admin/blogs/:id", authenticateAdmin, uploadMiddleware, handleUploadErrors, updateBlog);
 router.delete("/admin/blogs/:id", authenticateAdmin, deleteBlog);
+// Both are registered BEFORE /admin/blogs/:id, otherwise Express matches
+// "export" and "delete-many" as blog ids and hands them to getBlogById.
+router.get("/admin/blogs/export", authenticateAdmin, exportBlogs);
+router.post("/admin/blogs/delete-many", authenticateAdmin, express.json(), deleteManyBlogs);
 router.get("/admin/blogs/:id", authenticateAdmin, getBlogById);
 
 export default router;

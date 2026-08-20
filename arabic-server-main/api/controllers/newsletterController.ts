@@ -131,3 +131,56 @@ export const getAllNewsletters = async (req: Request, res: Response) => {
         });
     }
 };
+// Delete a single subscriber
+export const deleteNewsletter = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const removed = await Newsletter.findByIdAndDelete(id);
+
+        if (!removed) {
+            res.status(404).json({ status: "error", message: "Subscriber not found" });
+            return;
+        }
+
+        res.status(200).json({ status: "success", message: "Subscriber deleted" });
+    } catch (error) {
+        console.error("Error deleting newsletter subscriber:", error);
+        res.status(500).json({ status: "error", message: "Failed to delete the subscriber" });
+    }
+};
+
+/**
+ * Delete several subscribers at once.
+ *
+ * A POST rather than a DELETE because the ids travel in the body, and a request
+ * body on DELETE is poorly supported by proxies and some HTTP clients.
+ */
+export const deleteManyNewsletters = async (req: Request, res: Response) => {
+    try {
+        const { ids } = req.body;
+
+        if (!Array.isArray(ids) || ids.length === 0) {
+            res.status(400).json({ status: "error", message: "No subscribers selected" });
+            return;
+        }
+
+        // Guard against a runaway request wiping the list in one call. The admin
+        // screen sends at most one page of rows, so this is far above normal use.
+        if (ids.length > 500) {
+            res.status(400).json({ status: "error", message: "Too many at once. Select up to 500." });
+            return;
+        }
+
+        const result = await Newsletter.deleteMany({ _id: { $in: ids } });
+
+        res.status(200).json({
+            status: "success",
+            message: `${result.deletedCount} subscriber(s) deleted`,
+            deletedCount: result.deletedCount,
+        });
+    } catch (error) {
+        console.error("Error deleting newsletter subscribers:", error);
+        res.status(500).json({ status: "error", message: "Failed to delete the subscribers" });
+    }
+};

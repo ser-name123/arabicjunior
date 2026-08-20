@@ -18,6 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import Turnstile from "@/components/Turnstile";
+import useTurnstile from "@/hooks/useTurnstile";
 
 const formSchema = z.object({
   your_name: z.string().min(2, { message: 'Name must contain at least 2 character(s)' }).max(50, { message: 'Name must contain at most 50 character(s)' }),
@@ -40,9 +42,17 @@ const FaqForm = () => {
     },
   });
 
+  const captcha = useTurnstile();
+
   const handleConfirmSubmit = async () => {
     if (!formValues) return;
     setShowConfirm(false);
+
+    if (!captcha.ready) {
+      toast.error(captcha.notReadyMessage);
+      return;
+    }
+
     try {
       setIsLoading(true)
       toast.loading("Please wait for a moment..", {
@@ -54,11 +64,12 @@ const FaqForm = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formValues),
+        body: JSON.stringify({ ...formValues, turnstileToken: captcha.token }),
       });
 
       if (!res.ok) {
-        throw new Error(`Registration response error: ${res.status}`);
+        const failure = await res.json().catch(() => null);
+        throw new Error(failure?.message || `Registration response error: ${res.status}`);
       }
 
       const response = await res.json();
@@ -72,8 +83,12 @@ const FaqForm = () => {
         },
       });
       form.reset()
+      captcha.reset();
     } catch (error) {
-      toast.error("Something went wrong! Sorry for that.", {
+      setIsLoading(false);
+      // Whatever failed, the captcha token is spent — hand the visitor a fresh one.
+      captcha.reset();
+      toast.error(error instanceof Error && error.message ? error.message : "Something went wrong! Sorry for that.", {
         id: 'submit-question',
         cancel: {
           label: "Cancel",
@@ -173,6 +188,12 @@ const FaqForm = () => {
                 </FormItem>
               )}
             />
+            <Turnstile
+              onVerify={captcha.onVerify}
+              controlRef={captcha.controlRef}
+              className="col-span-full"
+            />
+
             <Button type="submit" className="col-span-full">
               Send
             </Button>

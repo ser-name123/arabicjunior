@@ -79,10 +79,10 @@ const TrialSectionBanner = () => {
   return (
     <section className="py-12 font-sans">
       <div className="container">
-        <div className="bg-white border border-[#E2E8F0] shadow-[0px_4px_30px_rgba(0,0,0,0.03)] rounded-[32px] overflow-hidden flex flex-col justify-between">
+        <div className="bg-[#F7F8FA] shadow-[0px_4px_30px_rgba(0,0,0,0.03)] rounded-[32px] overflow-hidden flex flex-col justify-between">
           
           {/* Main Section */}
-          <div className="p-6 md:pl-12 md:pr-0 md:py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center bg-white relative overflow-hidden">
+          <div className="p-6 md:pl-12 md:pr-0 md:py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center relative overflow-hidden">
             
             {/* Left Content Column */}
             <div className="lg:col-span-6 space-y-6 z-10">
@@ -98,7 +98,7 @@ const TrialSectionBanner = () => {
               {/* Title with Custom Wavy Underline */}
               <Reveal variant="up" delay={100}>
                 <div className="space-y-1">
-                  <h2 className="text-3xl md:text-[42px] font-extrabold text-[#0F172A] leading-tight tracking-tight">
+                  <h2 className="text-3xl md:text-[42px] font-extrabold text-black leading-tight tracking-tight">
                     {heading}{" "}
                     <span className="relative inline-block text-[#FB6238]">
                       {headingHighlight}
@@ -192,7 +192,7 @@ const TrialSectionBanner = () => {
           </div>
 
           {/* Bottom Horizontal Value Proposition Bar */}
-          <div className="border-t border-[#F1F5F9] bg-[#FAFAFA] px-6 py-6 md:px-12 grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0 z-10">
+          <div className="bg-[#F1F3F7] px-6 py-6 md:px-12 grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0 z-10">
             {bottomCards.map((card: any, idx: number) => {
               const Icon = getIconComponent(card.icon);
               const bgs = ["bg-[#E6F7F0]", "bg-[#FFF9E6]", "bg-[#EEF2FF]"];

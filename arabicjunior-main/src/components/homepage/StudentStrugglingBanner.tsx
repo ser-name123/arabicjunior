@@ -49,7 +49,7 @@ const StudentStrugglingBanner = () => {
               aria-label="banner-content"
               className="w-full lg:max-w-[43.375rem] lg:ml-auto lg:mr-40 order-2"
             >
-              <h3 className="text-neutral-950 text-3xl sm:text-5xl font-extrabold leading-tight sm:leading-tight mb-14 text-center">
+              <h3 className="text-black text-3xl sm:text-5xl font-extrabold leading-tight sm:leading-tight mb-14 text-center">
                 Is Your Child{" "}
                 <span className="text-orange-500">Struggling</span> with{" "}
                 <span className="text-pink-500">Arabic Studies</span> in{" "}

@@ -19,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ThankYouModal from "@/components/ThankYouModal";
+import Turnstile from "@/components/Turnstile";
+import useTurnstile from "@/hooks/useTurnstile";
 
 const formSchema = z.object({
   email: z.string().email(),
@@ -37,10 +39,18 @@ const NewsletterForm = () => {
     },
   });
 
+  const captcha = useTurnstile();
+
   const handleConfirmSubmit = async () => {
     if (!formValues) return;
 
     setShowConfirm(false);
+
+    if (!captcha.ready) {
+      toast.error(captcha.notReadyMessage);
+      return;
+    }
+
     try {
       setIsLoading(true);
       toast.loading("Please wait...", { id: "newsletter-submit" });
@@ -49,19 +59,27 @@ const NewsletterForm = () => {
       const res = await fetch(newsletterURL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formValues),
+        body: JSON.stringify({ ...formValues, turnstileToken: captcha.token }),
       });
 
       if (!res.ok) {
-        throw new Error(`Error response: ${res.status}`);
+        const failure = await res.json().catch(() => null);
+        throw new Error(failure?.message || `Error response: ${res.status}`);
       }
 
       const response = await res.json();
       toast.success(response.message || "Successfully subscribed!", { id: "newsletter-submit" });
       setThanksPopupOpen(true);
       form.reset();
+      captcha.reset();
     } catch (error) {
-      toast.error("Something went wrong. Please try again later.", { id: "newsletter-submit" });
+      captcha.reset();
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Something went wrong. Please try again later.",
+        { id: "newsletter-submit" }
+      );
       console.error("Newsletter submission failed:", error);
     } finally {
       setIsLoading(false);
@@ -83,7 +101,8 @@ const NewsletterForm = () => {
         description="We will send you updates and exclusive content. You can unsubscribe anytime."
       />
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center gap-5">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <div className="flex items-center gap-5">
           <FormField
             control={form.control}
             name="email"
@@ -96,7 +115,10 @@ const NewsletterForm = () => {
               </FormItem>
             )}
           />
-          <Button type="submit" disabled={isLoading} className="rounded-lg h-12 md:h-12">Submit</Button>
+            <Button type="submit" disabled={isLoading} className="rounded-lg h-12 md:h-12">Submit</Button>
+          </div>
+
+          <Turnstile onVerify={captcha.onVerify} controlRef={captcha.controlRef} />
         </form>
       </Form>
       <ThankYouModal title="Thank you for subscribing!" message="You're now on our list. Stay tuned for updates!" open={thanksPopupOpen} onClose={() => setThanksPopupOpen(false)} />

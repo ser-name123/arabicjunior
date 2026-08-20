@@ -33,3 +33,28 @@ export async function fetchContent<T>(
     return [];
   }
 }
+
+/**
+ * Same idea as fetchContent, but for the endpoints that return a single
+ * settings object rather than a list (the FAQ section, the footer, and so on).
+ * Returns null when the API cannot be reached so the caller can fall back to
+ * its built-in copy instead of rendering an empty section.
+ */
+export async function fetchSettings<T>(
+  path: string,
+  revalidate: number = REVALIDATE_SECONDS
+): Promise<T | null> {
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!base) return null;
+
+  try {
+    const res = await fetch(`${base}${path}`, { next: { revalidate } });
+    if (!res.ok) return null;
+
+    const json = await res.json();
+    return (json?.data as T) ?? null;
+  } catch (err) {
+    console.error(`Could not load settings from ${path}:`, err);
+    return null;
+  }
+}

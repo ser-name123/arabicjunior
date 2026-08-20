@@ -11,6 +11,7 @@ import {
   createPricingPlan,
   updatePricingPlan,
   deletePricingPlan,
+  deleteManyPricingPlans,
 } from "../controllers/pricingController";
 import { authenticateAdmin } from "../middleware/authMiddleware";
 
@@ -32,6 +33,12 @@ router.get("/admin/pricing/plans", authenticateAdmin, getPricingPlans);
 router.get("/admin/pricing/plans/:id", authenticateAdmin, getPricingPlanById);
 router.post("/admin/pricing/plans", authenticateAdmin, createPricingPlan);
 router.put("/admin/pricing/plans/:id", authenticateAdmin, updatePricingPlan);
+router.post(
+  "/admin/pricing/plans/delete-many",
+  authenticateAdmin,
+  express.json(),
+  deleteManyPricingPlans
+);
 router.delete("/admin/pricing/plans/:id", authenticateAdmin, deletePricingPlan);
 
 export default router;

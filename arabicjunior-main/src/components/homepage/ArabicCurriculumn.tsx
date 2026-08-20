@@ -2,53 +2,18 @@
 import { CurricolumnLeft } from "@/assets";
 import Image from "next/image";
 import React, { useState } from "react";
-import {
-  KgClassStudentIcon,
-  NativeArabicUserIcon,
-  NonArabUserIcon,
-} from "./svgIcons";
 import { Button } from "../ui/button";
 import Link from "next/link";
-import { ArrowRightIcon, Plus, Minus, BookOpenCheck, DollarSign } from "lucide-react";
+import { ArrowRightIcon, Plus, Minus } from "lucide-react";
 import Reveal from "../Reveal";
+import { CURRICULUM_ITEMS } from "./data/curriculum";
 
 const ArabicCurriculumn = () => {
-  const [expandedItems, setExpandedItems] = useState<number[]>([]);
+  // Only one panel is open at a time; opening another closes the previous one.
+  const [openKey, setOpenKey] = useState<string | null>(null);
 
-  const toggleItem = (index: number) => {
-    setExpandedItems(prev => 
-      prev.includes(index) 
-        ? prev.filter(i => i !== index)
-        : [...prev, index]
-    );
-  };
-
-  const curriculumItems = [
-    {
-      icon: <NativeArabicUserIcon className="text-3xl text-[#0062FC]" />,
-      bgColor: "bg-[#F4F5F7]",
-      title: "Online Arabic Tuition Aligned with UAE MOE Standards",
-      description: "We specialize in delivering online Arabic tuition aligned with the UAE Ministry of Education (MOE) standards. Our curriculum-based approach ensures students meet school learning objectives while strengthening their understanding of Arabic through structured and guided online lessons."
-    },
-    {
-      icon: <NonArabUserIcon className="text-3xl text-yellow-500" />,
-      bgColor: "bg-[#F4F5F7]",
-      title: "Comprehensive Arabic Language Skills Development",
-      description: "Our online Arabic language classes focus on developing all core skills, including reading, writing, speaking, listening, and grammar. Lessons are carefully designed to help students improve fluency and build a strong foundation in the Arabic language at every level."
-    },
-    {
-      icon: <DollarSign className="text-3xl text-green-500" />,
-      bgColor: "bg-[#F4F5F7]",
-      title: "Affordable Arabic Tuition Online in the UAE",
-      description: "At Arabic Juniors, we believe quality education should be accessible to everyone. Our affordable online Arabic tuition online in the UAE allows students to learn Arabic from the comfort of their homes while receiving personalized attention. Flexible scheduling and interactive lessons make our online classes ideal for busy families and working parents."
-    },
-    {
-      icon: <BookOpenCheck className="text-3xl text-pink-500" />,
-      bgColor: "bg-[#F4F5F7]",
-      title: "Arabic Language Classes for UAE School Students",
-      description: "We offer structured online Arabic language classes for beginners and advanced learners, with all School curriculum support for CBSE, British, IB, American, and MOE curricula. Our lessons focus on reading, writing, speaking, grammar, Quranic Arabic, and conversational Arabic, helping students build confidence and long-term fluency."
-    }
-  ];
+  const toggleItem = (key: string) =>
+    setOpenKey((current) => (current === key ? null : key));
 
   return (
     <React.Fragment>
@@ -92,49 +57,68 @@ const ArabicCurriculumn = () => {
                 aria-label="arabic-curricolumn-lists"
                 className="flex flex-col gap-y-4 mb-12"
               >
-                {curriculumItems.map((item, index) => (
-                  <Reveal
-                    as="li"
-                    key={index}
-                    variant="up"
-                    index={index}
-                    step={90}
-                    aria-label="curricolumn-list-item"
-                    className="bg-white p-5 xl:p-6 rounded-2xl border border-neutral-100 hover-lift"
-                  >
-                    <div
-                      className="flex items-center gap-x-6 xl:gap-x-8 cursor-pointer"
-                      onClick={() => toggleItem(index)}
+                {CURRICULUM_ITEMS.map((item, index) => {
+                  const isOpen = openKey === item.key;
+                  const Icon = item.icon;
+                  const panelId = `curriculum-panel-${item.key}`;
+
+                  return (
+                    <Reveal
+                      as="li"
+                      key={item.key}
+                      variant="up"
+                      index={index}
+                      step={90}
+                      aria-label="curricolumn-list-item"
+                      className="bg-white p-5 xl:p-6 rounded-2xl border border-neutral-100 hover-lift"
                     >
-                      <span
-                        aria-label="icon-wrapper"
-                        className={`flex-grow-0 flex-shrink-0 basis-auto p-4 xl:p-5 rounded-xl ${item.bgColor}`}
+                      <button
+                        type="button"
+                        onClick={() => toggleItem(item.key)}
+                        aria-expanded={isOpen}
+                        aria-controls={panelId}
+                        className="w-full flex items-center gap-x-6 xl:gap-x-8 text-left"
                       >
-                        {item.icon}
-                      </span>
-                      <div className="flex flex-col gap-y-2 flex-1 min-w-0">
-                        <h4 className="text-lg sm:text-xl xl:text-2xl font-semibold text-neutral-900 leading-tight">
-                          {item.title}
-                        </h4>
+                        <span
+                          aria-label="icon-wrapper"
+                          className={`flex-grow-0 flex-shrink-0 basis-auto p-4 xl:p-5 rounded-xl ${item.iconBgClassName}`}
+                        >
+                          <Icon className={item.iconClassName} />
+                        </span>
+                        <div className="flex flex-col gap-y-2 flex-1 min-w-0">
+                          <h4 className="text-lg sm:text-xl xl:text-2xl font-semibold text-neutral-900 leading-tight">
+                            {item.title}
+                          </h4>
+                        </div>
+                        <span className="flex-shrink-0 flex items-center justify-center w-8 h-8 xl:w-9 xl:h-9 rounded-full bg-neutral-100 hover:bg-neutral-200 transition-colors">
+                          {isOpen ? (
+                            <Minus className="w-4 h-4 xl:w-5 xl:h-5 text-neutral-600" />
+                          ) : (
+                            <Plus className="w-4 h-4 xl:w-5 xl:h-5 text-neutral-600" />
+                          )}
+                        </span>
+                      </button>
+
+                      {/* The 0fr -> 1fr grid row animates to the panel's natural height
+                          without hard-coding one, and keeps the copy in the DOM so it
+                          stays crawlable while collapsed. */}
+                      <div
+                        id={panelId}
+                        className={`grid transition-all duration-300 ease-in-out ${
+                          isOpen
+                            ? "grid-rows-[1fr] opacity-100 mt-5 xl:mt-6"
+                            : "grid-rows-[0fr] opacity-0 mt-0"
+                        }`}
+                      >
+                        <div className="overflow-hidden pl-16 xl:pl-20">
+                          <p className="text-sm sm:text-[0.95rem] xl:text-base font-normal text-neutral-600 leading-relaxed">
+                            {item.description}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 xl:w-9 xl:h-9 rounded-full bg-neutral-100 hover:bg-neutral-200 transition-colors">
-                        {expandedItems.includes(index) ? (
-                          <Minus className="w-4 h-4 xl:w-5 xl:h-5 text-neutral-600" />
-                        ) : (
-                          <Plus className="w-4 h-4 xl:w-5 xl:h-5 text-neutral-600" />
-                        )}
-                      </div>
-                    </div>
-                    
-                    {expandedItems.includes(index) && (
-                      <div className="mt-5 xl:mt-6 pl-16 xl:pl-20 transition-all duration-200 ease-in-out">
-                        <p className="text-base sm:text-lg xl:text-xl font-normal text-neutral-600 leading-relaxed">
-                          {item.description}
-                        </p>
-                      </div>
-                    )}
-                  </Reveal>
-                ))}
+                    </Reveal>
+                  );
+                })}
               </ul>
 
               <Reveal
