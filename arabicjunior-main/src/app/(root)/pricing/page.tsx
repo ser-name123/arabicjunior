@@ -6,6 +6,14 @@ import { FaqTypes } from "@/types";
 import { fetchContent } from "@/lib/contentApi";
 import type { PricingGroup } from "@/types/Pricing";
 import Reveal from "@/components/Reveal";
+import { fetchSettings } from "@/lib/contentApi";
+import type { PricingPageContent } from "@/types/PricingPage";
+import PlanNotes from "./components/PlanNotes";
+import IncludedInEveryPlan from "./components/IncludedInEveryPlan";
+import WhichPlan from "./components/WhichPlan";
+import HowItWorks from "./components/HowItWorks";
+import FlexibleLearning from "./components/FlexibleLearning";
+import WhyParentsChoose from "./components/WhyParentsChoose";
 
 const FAQ_DATA: FaqTypes[] = [
   {
@@ -34,7 +42,12 @@ const FAQ_DATA: FaqTypes[] = [
 // no-op — the tags come from layout.tsx, which already carries exactly these
 // title, description, Open Graph and canonical values.
 const PricingPlanPage = async () => {
-  const groups = await fetchContent<PricingGroup>("/pricing");
+  const [groups, content] = await Promise.all([
+    fetchContent<PricingGroup>("/pricing"),
+    // Null when the API is down; every section below renders nothing rather
+    // than an empty heading, so the page comes up short instead of broken.
+    fetchSettings<PricingPageContent>("/pricing-page"),
+  ]);
 
   // A tab with no cards would render as an empty panel.
   const populated = groups.filter((group) => group.plans.length > 0);
@@ -66,9 +79,45 @@ const PricingPlanPage = async () => {
                 <PricingTabs groups={populated} />
               </div>
             )}
+
+            <PlanNotes notes={content?.planNotes ?? []} />
           </div>
         </div>
       </section>
+
+      <IncludedInEveryPlan
+        heading={content?.includedHeading || "What's Included With"}
+        highlight={content?.includedHeadingHighlight || "Every Plan"}
+        subheading={content?.includedSubheading || ""}
+        cards={content?.includedCards ?? []}
+      />
+
+      <WhichPlan
+        heading={content?.chooseHeading || "Which Plan Is Right for"}
+        highlight={content?.chooseHeadingHighlight || "Your Child?"}
+        subheading={content?.chooseSubheading || ""}
+        cards={content?.chooseCards ?? []}
+      />
+
+      <HowItWorks
+        heading={content?.howHeading || "How Our Arabic Tuition"}
+        highlight={content?.howHeadingHighlight || "Works"}
+        subheading={content?.howSubheading || ""}
+        steps={content?.howSteps ?? []}
+      />
+
+      <FlexibleLearning
+        heading={content?.flexibleHeading || ""}
+        subtext={content?.flexibleSubtext || ""}
+        pills={content?.flexiblePills ?? []}
+      />
+
+      <WhyParentsChoose
+        heading={content?.whyHeading || "Why Parents Choose"}
+        highlight={content?.whyHeadingHighlight || "Arabic Juniors"}
+        subheading={content?.whySubheading || ""}
+        items={content?.whyItems ?? []}
+      />
 
       <PlanGuideSection />
       <FaqSection faqData={FAQ_DATA} />

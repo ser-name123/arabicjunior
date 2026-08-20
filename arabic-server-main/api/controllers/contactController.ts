@@ -178,6 +178,42 @@ export const updateContactMessageStatus = async (req: Request, res: Response): P
   }
 };
 
+/**
+ * POST: Delete several contact submissions at once (Admin Only).
+ *
+ * A POST rather than a DELETE because the ids travel in the body, and a body on
+ * DELETE is dropped by some proxies and HTTP clients.
+ */
+export const deleteManyContactMessages = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: "No messages selected" });
+    }
+
+    // An upper bound so a malformed request cannot clear the whole inbox in one
+    // call. Nobody selects more than this by hand.
+    if (ids.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: "Please delete at most 500 messages at a time",
+      });
+    }
+
+    const result = await ContactMessage.deleteMany({ _id: { $in: ids } });
+
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} message(s) deleted successfully!`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Error deleting contact messages:", error);
+    res.status(500).json({ success: false, message: "Failed to delete the messages" });
+  }
+};
+
 // DELETE: Delete a contact message submission (Admin Only)
 export const deleteContactMessage = async (req: Request, res: Response): Promise<any> => {
   try {

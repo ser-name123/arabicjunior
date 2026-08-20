@@ -21,6 +21,7 @@ export default function FooterSettingsAdminPage() {
   const [phoneLink, setPhoneLink] = useState("");
   const [email, setEmail] = useState("");
   const [location, setLocation] = useState("");
+  const [seoKeywords, setSeoKeywords] = useState("");
 
   const fetchFooterSettings = async () => {
     try {
@@ -38,6 +39,9 @@ export default function FooterSettingsAdminPage() {
         setPhoneLink(d.phoneLink || "");
         setEmail(d.email || "");
         setLocation(d.location || "");
+        setSeoKeywords(
+          Array.isArray(d.seoKeywords) ? d.seoKeywords.join("\n") : ""
+        );
       } else {
         toast.error("Failed to load footer settings");
       }
@@ -80,6 +84,10 @@ export default function FooterSettingsAdminPage() {
           phoneLink,
           email,
           location,
+          seoKeywords: seoKeywords
+            .split("\n")
+            .map((k) => k.trim())
+            .filter(Boolean),
         }),
       });
 
@@ -157,6 +165,23 @@ export default function FooterSettingsAdminPage() {
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors text-sm bg-white text-black"
                 disabled={saving}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-neutral-600 mb-1.5">
+                Footer Keywords
+              </label>
+              <textarea
+                value={seoKeywords}
+                onChange={(e) => setSeoKeywords(e.target.value)}
+                placeholder={"Arabic Classes Online\nArabic Language Centre Dubai\nOnline Arabic Classes"}
+                rows={8}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors text-sm bg-white text-black"
+                disabled={saving}
+              />
+              <p className="mt-1.5 text-xs text-neutral-500">
+                One per line. Shown as a single row above the copyright line.
+                Leave empty to hide the row.
+              </p>
             </div>
           </div>
         </div>

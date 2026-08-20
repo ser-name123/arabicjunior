@@ -23,6 +23,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import Turnstile from "@/components/Turnstile";
+import useTurnstile from "@/hooks/useTurnstile";
 import { z } from "zod";
 
 const formSchema = z.object({
@@ -76,8 +78,16 @@ const ContactForm = () => {
     },
   });
 
+  const captcha = useTurnstile();
+
   const handleConfirmSubmit = async () => {
     if (!formValues) return;
+
+    if (!captcha.ready) {
+      setShowConfirm(false);
+      toast.error(captcha.notReadyMessage);
+      return;
+    }
 
     setShowConfirm(false);
     try {
@@ -89,19 +99,28 @@ const ContactForm = () => {
       const res = await fetch(contactURL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formValues),
+        body: JSON.stringify({ ...formValues, turnstileToken: captcha.token }),
       });
 
       if (!res.ok) {
-        throw new Error(`Error response: ${res.status}`);
+        // The captcha token is spent either way, so a retry needs a fresh one.
+        const failure = await res.json().catch(() => null);
+        throw new Error(failure?.message || `Error response: ${res.status}`);
       }
 
       const response = await res.json();
       toast.success(response.message || "Message sent successfully!", { id: "contact-submit" });
       setThanksPopupOpen(true);
       formMethods.reset();
+      captcha.reset();
     } catch (error) {
-      toast.error("Something went wrong. Please try again later.", { id: "contact-submit" });
+      captcha.reset();
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Something went wrong. Please try again later.",
+        { id: "contact-submit" }
+      );
       console.error("Contact submission failed:", error);
     } finally {
       setIsLoading(false);
@@ -228,6 +247,12 @@ const ContactForm = () => {
               )}
             />
           </div>
+
+          <Turnstile
+            onVerify={captcha.onVerify}
+            controlRef={captcha.controlRef}
+            className="mt-5"
+          />
 
           <Button type="submit" className="mt-5 w-full text-lg">
             {isLoading ? "Submitting..." : "Submit Now"}

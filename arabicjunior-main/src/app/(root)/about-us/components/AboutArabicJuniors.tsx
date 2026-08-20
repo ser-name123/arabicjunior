@@ -129,7 +129,7 @@ const AboutArabicJuniors = () => {
             <span className="text-[#FB6238] opacity-60 font-semibold">──✦──</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0F172A] leading-tight tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-black leading-tight tracking-tight">
             {heading}{" "}
             <span className="text-[#FB6238]">{headingHighlight}</span>{" "}
             <span className="block mt-1">{headingSuffix}</span>

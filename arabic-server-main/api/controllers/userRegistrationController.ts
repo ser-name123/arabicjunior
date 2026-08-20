@@ -1,6 +1,7 @@
 import { RequestHandler, type Request, type Response } from "express";
 import User from "../models/user";
 import { getClientLocation } from "../utils/getClientLocation";
+import { buildClientInfo } from "../utils/buildClientInfo";
 import {
   sendTrialEmailToAdmin,
   sendTrialSessionEmailToUser,
@@ -14,6 +15,7 @@ export const registerUser: RequestHandler = async (
 ) => {
   try {
     const userLocation = await getClientLocation(req);
+    const clientInfo = await buildClientInfo(req);
 
     const body: TrialRegFormTypes = req.body;
 
@@ -23,9 +25,14 @@ export const registerUser: RequestHandler = async (
     }
 
     // save to db
+    // clientContext is stripped out: it is the browser's raw report, and the
+    // cleaned version already lives in clientInfo.
+    const { clientContext, ...formFields } = body as any;
+
     const registrationData = {
-  ...body,
-  userIP: userLocation?.city ?? body.city ?? "Unknown",
+      ...formFields,
+      userIP: userLocation?.city ?? body.city ?? "Unknown",
+      clientInfo,
     };
     const users = new User(registrationData);
     await users.save();
@@ -191,6 +198,50 @@ export const deleteTrialUser = async (req: Request, res: Response): Promise<any>
     res.status(500).json({
       status: "error",
       message: "Failed to delete trial user",
+      error,
+    });
+  }
+};
+
+/**
+ * Delete several trial signups at once.
+ *
+ * A POST rather than a DELETE because the ids travel in the body, and a body on
+ * DELETE is poorly supported by proxies and some HTTP clients.
+ */
+export const deleteManyTrialUsers = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "No trial students selected" });
+    }
+
+    // Guard against a runaway request clearing the table in one call. The admin
+    // screen sends at most one page of rows, so this is far above normal use.
+    if (ids.length > 500) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "Too many at once. Select up to 500." });
+    }
+
+    const result = await User.deleteMany({ _id: { $in: ids } });
+
+    res.status(200).json({
+      status: "success",
+      message: `${result.deletedCount} trial student(s) deleted`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Error deleting trial users:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to delete the trial students",
       error,
     });
   }

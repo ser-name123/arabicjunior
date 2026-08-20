@@ -291,6 +291,63 @@ export const updateTestimonial = async (req: Request, res: Response): Promise<an
   }
 };
 
+/**
+ * POST: Delete several testimonials at once (Admin Only).
+ *
+ * Collects every image and video first, deletes the records, then clears
+ * Cloudinary — the same order the single delete uses, so a stubborn asset
+ * cannot block the deletion itself.
+ */
+export const deleteManyTestimonials = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: "No testimonials selected" });
+    }
+
+    // An upper bound so one malformed request cannot wipe the list.
+    if (ids.length > 200) {
+      return res.status(400).json({
+        success: false,
+        message: "Please delete at most 200 testimonials at a time",
+      });
+    }
+
+    const testimonials = await Testimonial.find({ _id: { $in: ids } });
+
+    const assets: Uploaded[] = [];
+    for (const testimonial of testimonials) {
+      if (testimonial.imagePublicId) {
+        assets.push({
+          public_id: testimonial.imagePublicId,
+          secure_url: testimonial.image ?? "",
+          resource_type: "image",
+        });
+      }
+      if (testimonial.videoPublicId) {
+        assets.push({
+          public_id: testimonial.videoPublicId,
+          secure_url: testimonial.videoUrl ?? "",
+          resource_type: "video",
+        });
+      }
+    }
+
+    const result = await Testimonial.deleteMany({ _id: { $in: ids } });
+    await destroyQuietly(assets);
+
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} testimonial(s) deleted successfully!`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Error deleting testimonials:", error);
+    res.status(500).json({ success: false, message: "Failed to delete the testimonials" });
+  }
+};
+
 export const deleteTestimonial = async (req: Request, res: Response): Promise<any> => {
   try {
     const testimonial = await Testimonial.findById(req.params.id);

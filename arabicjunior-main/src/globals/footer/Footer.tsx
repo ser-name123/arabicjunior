@@ -43,6 +43,9 @@ const Footer = () => {
   const location = settings?.location || "Dubai - United Arab Emirates";
   
   const copyright = settings?.copyright || "©2026 www.arabicjuniors.com | All Rights Reserved by The Learning Hub FZE LLC";
+  const seoKeywords: string[] = settings?.seoKeywords?.length
+    ? settings.seoKeywords
+    : [];
 
   const SOCIAL_DATA = [
     {
@@ -258,6 +261,27 @@ const Footer = () => {
               ))}
             </ul>
           </div>
+
+          {seoKeywords.length > 0 && (
+            <ul
+              aria-label="footer-seo-keywords"
+              className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-t border-t-neutral-200 pt-4 pb-1 text-center"
+            >
+              {seoKeywords.map((keyword, index) => (
+                <li
+                  key={keyword}
+                  className="flex items-center gap-x-3 text-xs sm:text-sm font-normal text-neutral-600"
+                >
+                  <span>{keyword}</span>
+                  {index < seoKeywords.length - 1 && (
+                    <span aria-hidden="true" className="text-neutral-300">
+                      |
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
 
           <div
             aria-label="footer-copyright"

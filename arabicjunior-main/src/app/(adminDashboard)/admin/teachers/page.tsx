@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
-import { GraduationCap, Home, Plus, Star } from "lucide-react";
+import { FileSpreadsheet, GraduationCap, Home, Plus, Star, Trash2 } from "lucide-react";
+import * as XLSX from "xlsx";
+import { format } from "date-fns";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/admin/data-table";
@@ -122,7 +124,15 @@ export default function TeachersPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+
+  const [selectedRows, setSelectedRows] = useState<Teacher[]>([]);
+  /** Bumped after a delete or a page change to clear the ticked rows. */
+  const [selectionKey, setSelectionKey] = useState(0);
+  const [openBulkDialog, setOpenBulkDialog] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const fetchTeachers = useCallback(async () => {
     if (!token) return;
@@ -139,6 +149,7 @@ export default function TeachersPage() {
       const json = await res.json();
       setTeachers(json.data ?? []);
       setTotalPages(json.pagination?.totalPages || 1);
+      setTotal(json.pagination?.total ?? 0);
     } catch (err) {
       console.error(err);
       setTeachers([]);
@@ -150,6 +161,107 @@ export default function TeachersPage() {
   useEffect(() => {
     fetchTeachers();
   }, [fetchTeachers]);
+
+  // Ticks must not survive a page change: the rows behind them are gone, and a
+  // later bulk delete would hit profiles nobody looked at.
+  useEffect(() => {
+    setSelectedRows([]);
+    setSelectionKey((k) => k + 1);
+  }, [currentPage, pageSize]);
+
+  const handleBulkDelete = async () => {
+    if (!selectedRows.length || !token) return;
+
+    setBulkDeleting(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/teachers/delete-many`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ids: selectedRows.map((t) => t._id) }),
+        }
+      );
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.message || "Failed to delete");
+
+      toast.success(json?.message || "Teachers deleted");
+
+      // The page may now be past the end — after deleting the only rows on
+      // page 2, staying there would show "No results".
+      const remaining = total - selectedRows.length;
+      const lastPage = Math.max(1, Math.ceil(remaining / pageSize));
+      if (currentPage > lastPage) {
+        setCurrentPage(lastPage);
+      } else {
+        fetchTeachers();
+      }
+
+      setSelectedRows([]);
+      setSelectionKey((k) => k + 1);
+      setOpenBulkDialog(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Failed to delete");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleExport = async () => {
+    if (!token) return;
+
+    setExporting(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/teachers/export`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) throw new Error("Failed to fetch the teachers");
+
+      const json = await res.json();
+      const all: any[] = json.data ?? [];
+
+      if (!all.length) {
+        toast.error("There are no teachers to export");
+        return;
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(
+        all.map((t) => ({
+          Order: t.order ?? "",
+          Name: t.name,
+          Title: t.profession,
+          Experience: t.experience || "-",
+          Education: t.education || "-",
+          Subject: t.subject || "-",
+          Grades: t.grade || "-",
+          Rating: t.rating ?? "",
+          Status: t.status,
+          "On Homepage": t.showOnHomepage ? "Yes" : "No",
+          About: t.shortDescription || "-",
+          // The image links are included so a row can be traced back to its
+          // photo without opening the admin panel.
+          "Photo URL": t.image || "-",
+          "Portrait URL": t.portrait || "-",
+          "Added On": t.createdAt ? format(new Date(t.createdAt), "dd-MM-yyyy") : "-",
+          "Last Updated": t.updatedAt ? format(new Date(t.updatedAt), "dd-MM-yyyy") : "-",
+        }))
+      );
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Teachers");
+      XLSX.writeFile(workbook, "teachers.xlsx");
+      toast.success(`${all.length} teacher(s) exported`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not export the teachers");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleDelete = async () => {
     try {
@@ -170,6 +282,8 @@ export default function TeachersPage() {
 
       toast.success("Teacher deleted successfully!", { id: "teacher-delete" });
       setOpenDialog(false);
+      setSelectedRows([]);
+      setSelectionKey((k) => k + 1);
       setDeleting(null);
       fetchTeachers();
     } catch (err) {
@@ -183,6 +297,9 @@ export default function TeachersPage() {
       <div className="flex justify-between items-center">
         <h3 className="text-2xl font-semibold flex items-center gap-2">
           <GraduationCap /> Teachers
+          <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-600">
+            {total.toLocaleString()} total
+          </span>
         </h3>
       </div>
 
@@ -192,7 +309,29 @@ export default function TeachersPage() {
         slider. Only <strong>published</strong> teachers are shown.
       </p>
 
-      <div className="flex justify-end items-center">
+      <div className="flex flex-wrap justify-end items-center gap-3">
+        {selectedRows.length > 0 && (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setOpenBulkDialog(true)}
+            className="h-8 gap-2 text-xs mr-auto"
+          >
+            <Trash2 size={16} /> Delete selected ({selectedRows.length})
+          </Button>
+        )}
+
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={handleExport}
+          disabled={exporting}
+          className="h-8 gap-2 text-black text-xs"
+        >
+          <FileSpreadsheet size={18} />
+          {exporting ? "Exporting…" : "Export to Excel"}
+        </Button>
+
         <Button
           size="sm"
           onClick={() => router.push("/admin/teachers/new")}
@@ -214,6 +353,9 @@ export default function TeachersPage() {
           setPageSize(size);
           setCurrentPage(1);
         }}
+        enableSelection
+        onSelectionChange={(rows) => setSelectedRows(rows as Teacher[])}
+        selectionResetKey={selectionKey}
         showActions={true}
         actions={["view", "edit", "delete"]}
         onAction={(type, row) => {
@@ -257,6 +399,55 @@ export default function TeachersPage() {
               </Button>
               <Button variant="destructive" onClick={handleDelete}>
                 Delete
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation. Names who is going, not just how many —
+          deleting a teacher also removes their photos. */}
+      <Dialog open={openBulkDialog} onOpenChange={setOpenBulkDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Delete {selectedRows.length} teacher
+              {selectedRows.length === 1 ? "" : "s"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-neutral-500">
+              They will be removed from the Teachers page, About Us and the
+              homepage, along with their photos. This cannot be undone.
+            </p>
+
+            <ul className="max-h-40 overflow-y-auto rounded-lg bg-muted/40 p-3 text-xs">
+              {selectedRows.slice(0, 20).map((t) => (
+                <li key={t._id} className="truncate">
+                  {t.name} &mdash; {t.profession}
+                </li>
+              ))}
+              {selectedRows.length > 20 && (
+                <li className="pt-1 font-semibold">
+                  …and {selectedRows.length - 20} more
+                </li>
+              )}
+            </ul>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                disabled={bulkDeleting}
+                onClick={() => setOpenBulkDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+              >
+                {bulkDeleting ? "Deleting…" : "Delete"}
               </Button>
             </div>
           </div>

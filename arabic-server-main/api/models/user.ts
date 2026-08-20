@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import clientInfoSchema, { type ClientInfo } from "./clientInfo";
 export interface UserDocument {
   firstName: string;
   lastName: string;
@@ -13,6 +14,8 @@ export interface UserDocument {
   userIP: string;
   gender: "male" | "female";
   attended: boolean;
+  /** Device, browser and IP context captured when the form was submitted. */
+  clientInfo?: ClientInfo;
 }
 
 const userSchema = new mongoose.Schema({
@@ -32,7 +35,10 @@ const userSchema = new mongoose.Schema({
     enum: ["male", "female"],
     required: true
   },
-  attended: { type: Boolean, required: true, default: false }
+  attended: { type: Boolean, required: true, default: false },
+  // Optional on purpose: every row that predates this has none, and a required
+  // field would make those documents fail validation on the next save.
+  clientInfo: { type: clientInfoSchema, required: false }
 }, {
   timestamps: true
 });

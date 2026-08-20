@@ -17,7 +17,22 @@ import { revalidatePath } from "next/cache";
  * regeneration on every request.
  */
 
-const PATHS = ["/", "/our-teachers", "/about-us", "/pricing", "/careers"];
+/**
+ * Every statically generated page that reads from the API. A page missing here
+ * keeps serving its cached copy after a save, so the admin sees "updated" while
+ * the live page does not change for up to ten minutes.
+ */
+const PATHS = [
+  "/",
+  "/our-teachers",
+  "/about-us",
+  "/pricing",
+  "/careers",
+  // Reads the contact details and the SEO section below the form.
+  "/contact-us",
+  // Renders the same FAQ and testimonial sections as the homepage.
+  "/welcome",
+];
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");

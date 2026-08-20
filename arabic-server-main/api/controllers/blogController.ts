@@ -247,3 +247,91 @@ export const deleteBlog = async (req: Request, res: Response): Promise<any> => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+/**
+ * Delete several blog posts at once.
+ *
+ * A POST rather than a DELETE because the ids travel in the body, and a body on
+ * DELETE is poorly supported by proxies and some HTTP clients.
+ */
+export const deleteManyBlogs = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const { ids } = req.body;
+
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ success: false, message: "No blogs selected" });
+        }
+
+        // Guard against a runaway request clearing the blog. The admin screen
+        // sends at most one page of rows, so this is far above normal use.
+        if (ids.length > 200) {
+            return res
+                .status(400)
+                .json({ success: false, message: "Too many at once. Select up to 200." });
+        }
+
+        const blogs = await Blog.find({ _id: { $in: ids } }).select("imagePublicId");
+
+        // Cover images are removed alongside the posts, exactly as the single
+        // delete does. Skipping this would leave an orphaned file in Cloudinary
+        // for every post deleted this way, costing storage nobody can find.
+        const imageResults = await Promise.allSettled(
+            blogs
+                .filter((blog) => blog.imagePublicId)
+                .map((blog) => cloudinary.uploader.destroy(blog.imagePublicId as string))
+        );
+
+        const failedImages = imageResults.filter((r) => r.status === "rejected").length;
+        if (failedImages) {
+            // Logged, not fatal: a stranded image is untidy, but refusing to
+            // delete the posts because of it would be worse.
+            console.warn(`[blogs] ${failedImages} cover image(s) could not be removed from Cloudinary`);
+        }
+
+        const result = await Blog.deleteMany({ _id: { $in: ids } });
+
+        res.status(200).json({
+            success: true,
+            message: `${result.deletedCount} blog(s) deleted`,
+            deletedCount: result.deletedCount,
+        });
+    } catch (error: any) {
+        console.error("Error deleting blogs:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Every blog for the admin export, drafts included and without paging.
+ *
+ * Separate from the public getAllBlogs, which returns published posts only —
+ * an export that silently dropped every draft would be misleading.
+ */
+export const exportBlogs = async (req: Request, res: Response) => {
+    try {
+        const { search = "" } = req.query;
+
+        let filter: any = {};
+        if (search && typeof search === "string" && search.trim() !== "") {
+            const regex = containsRegex(search);
+            filter = {
+                $or: [{ title: regex }, { shortDescription: regex }, { contentText: regex }],
+            };
+        }
+
+        // contentHtml is excluded on purpose: it is the whole article as markup
+        // and would make the spreadsheet unreadable and enormous.
+        const blogs = await Blog.find(filter)
+            .select("-contentHtml")
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            message: "success",
+            data: blogs,
+            total: blogs.length,
+        });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

@@ -12,6 +12,11 @@ body {
   font-optical-sizing: auto;
   font-weight: 400;
   font-style: normal;
+  /* The brand black, matching theme.colors.black in tailwind.config.ts.
+     Anything without its own colour class used to fall back to the browser
+     default of pure black, which left stray true-black text — the header's
+     "Book a Free Trial" among it — after the palette moved off #000000. */
+  color: #434343;
 }
 
 

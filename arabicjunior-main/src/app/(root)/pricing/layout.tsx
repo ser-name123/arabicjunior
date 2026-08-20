@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import React from "react";
+import { buildPageMetadata } from "@/lib/seo";
 
 
-export const metadata: Metadata = {
+const FALLBACK_METADATA: Metadata = {
     title: 'Arabic Tuition for School Students in UAE & Sharjah | Fees & Contact Details',
     description: 'Find the best Arabic tuition for school students in UAE & Sharjah. Get affordable fees, expert tutors, & direct contact information for personalized Arabic classes.',
     openGraph: {
@@ -22,3 +23,7 @@ const layout = async ({ children }: { children: React.ReactNode }) => {
 };
 
 export default layout;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildPageMetadata("pricing", FALLBACK_METADATA);
+}

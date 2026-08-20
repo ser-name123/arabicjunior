@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
-import { MessageSquareQuote, Play, Plus, Star } from "lucide-react";
+import { MessageSquareQuote, Play, Plus, Star, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -115,7 +115,14 @@ export default function TestimonialsPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+
+  const [selectedRows, setSelectedRows] = useState<Testimonial[]>([]);
+  /** Bumped after a delete or a page change to clear the ticked rows. */
+  const [selectionKey, setSelectionKey] = useState(0);
+  const [openBulkDialog, setOpenBulkDialog] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const fetchTestimonials = useCallback(async () => {
     if (!token) return;
@@ -132,6 +139,7 @@ export default function TestimonialsPage() {
       const json = await res.json();
       setTestimonials(json.data ?? []);
       setTotalPages(json.pagination?.totalPages || 1);
+      setTotal(json.pagination?.total ?? 0);
     } catch (err) {
       console.error(err);
       setTestimonials([]);
@@ -143,6 +151,56 @@ export default function TestimonialsPage() {
   useEffect(() => {
     fetchTestimonials();
   }, [fetchTestimonials]);
+
+  // Ticks must not survive a page change: the rows behind them are gone, and a
+  // later bulk delete would hit records nobody looked at.
+  useEffect(() => {
+    setSelectedRows([]);
+    setSelectionKey((key) => key + 1);
+  }, [currentPage, pageSize]);
+
+  const handleBulkDelete = async () => {
+    if (!selectedRows.length || !token) return;
+
+    setBulkDeleting(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/testimonials/delete-many`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ids: selectedRows.map((row) => row._id) }),
+        }
+      );
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.message || "Failed to delete");
+
+      await revalidateContent(token);
+      toast.success(json?.message || "Testimonials deleted");
+
+      // The page may now be past the end — after deleting the only rows on
+      // page 3, staying there would show "No results".
+      const remaining = total - selectedRows.length;
+      const lastPage = Math.max(1, Math.ceil(remaining / pageSize));
+      if (currentPage > lastPage) {
+        setCurrentPage(lastPage);
+      } else {
+        fetchTestimonials();
+      }
+
+      setSelectedRows([]);
+      setSelectionKey((key) => key + 1);
+      setOpenBulkDialog(false);
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   const handleDelete = async () => {
     try {
@@ -164,6 +222,8 @@ export default function TestimonialsPage() {
       toast.success("Testimonial deleted successfully!", { id: "testimonial-delete" });
       setOpenDialog(false);
       setDeleting(null);
+      setSelectedRows([]);
+      setSelectionKey((key) => key + 1);
       fetchTestimonials();
     } catch (err) {
       console.error(err);
@@ -178,6 +238,9 @@ export default function TestimonialsPage() {
       <div className="flex justify-between items-center">
         <h3 className="text-2xl font-semibold flex items-center gap-2">
           <MessageSquareQuote /> Testimonials
+          <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-600">
+            {total.toLocaleString()} total
+          </span>
         </h3>
       </div>
 
@@ -186,7 +249,18 @@ export default function TestimonialsPage() {
         <strong>published</strong> ones are shown, ordered by the display order.
       </p>
 
-      <div className="flex justify-end items-center">
+      <div className="flex flex-wrap justify-end items-center gap-3">
+        {selectedRows.length > 0 && (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setOpenBulkDialog(true)}
+            className="h-8 gap-2 text-xs mr-auto"
+          >
+            <Trash2 size={16} /> Delete selected ({selectedRows.length})
+          </Button>
+        )}
+
         <Button
           size="sm"
           onClick={() => router.push("/admin/testimonials/new")}
@@ -208,6 +282,9 @@ export default function TestimonialsPage() {
           setPageSize(size);
           setCurrentPage(1);
         }}
+        enableSelection
+        onSelectionChange={(rows) => setSelectedRows(rows as Testimonial[])}
+        selectionResetKey={selectionKey}
         showActions={true}
         actions={["edit", "delete"]}
         onAction={(type, row) => {
@@ -251,6 +328,56 @@ export default function TestimonialsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk delete confirmation. Names who is going, not just how many —
+          deleting a testimonial also removes its photo or video. */}
+      <Dialog open={openBulkDialog} onOpenChange={setOpenBulkDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Delete {selectedRows.length} testimonial
+              {selectedRows.length === 1 ? "" : "s"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-neutral-500">
+              They will be removed from the homepage along with their photos and
+              videos. This cannot be undone.
+            </p>
+
+            <ul className="max-h-40 overflow-y-auto rounded-lg bg-muted/40 p-3 text-xs">
+              {selectedRows.slice(0, 20).map((row) => (
+                <li key={row._id} className="truncate">
+                  {row.authorName} &mdash; {row.profession}
+                </li>
+              ))}
+              {selectedRows.length > 20 && (
+                <li className="pt-1 font-semibold">
+                  …and {selectedRows.length - 20} more
+                </li>
+              )}
+            </ul>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                disabled={bulkDeleting}
+                onClick={() => setOpenBulkDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+              >
+                {bulkDeleting ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

@@ -70,7 +70,7 @@ export default function Preloader() {
 
         {/* Text Loading Indicator */}
         <div className="flex flex-col items-center gap-1.5 z-10">
-          <span className="text-[#FB6238] font-extrabold text-lg tracking-widest font-sans uppercase animate-pulse">
+          <span className="text-[#FB6238] font-extrabold text-lg tracking-widest uppercase animate-pulse">
             Arabic Juniors
           </span>
           <div className="flex items-center gap-1">

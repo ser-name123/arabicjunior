@@ -3,6 +3,13 @@
 import React, { useState, useEffect } from "react";
 import useAuthAdmin from "@/hooks/useAuthAdmin";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button-2";
 import { 
   Loader2, 
   Save, 
@@ -21,7 +28,6 @@ import {
   ArrowLeft,
   Copy,
   ExternalLink,
-  Home,
   Layers,
   LayoutGrid,
   Sparkles
@@ -84,8 +90,10 @@ export default function TrialLandingAdminPage() {
   const [pagesList, setPagesList] = useState<LandingPageListItem[]>([]);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   
-  // Toggle main view: "list" (Landing Pages CMS) | "homeBanner" (Homepage Trial Banner)
-  const [mainViewTab, setMainViewTab] = useState<"list" | "homeBanner">("list");
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [openBulkDialog, setOpenBulkDialog] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Creation States
   const [isCreating, setIsCreating] = useState(false);
@@ -170,30 +178,6 @@ export default function TrialLandingAdminPage() {
   const [ctaImageFile, setCtaImageFile] = useState<File | null>(null);
   const [ctaImagePreview, setCtaImagePreview] = useState("");
 
-  // ==========================================
-  // HOMEPAGE TRIAL BANNER STATES
-  // ==========================================
-  const [homeBadgeText, setHomeBadgeText] = useState("");
-  const [homeHeading, setHomeHeading] = useState("");
-  const [homeHeadingHighlight, setHomeHeadingHighlight] = useState("");
-  const [homeHeadingSuffix, setHomeHeadingSuffix] = useState("");
-  const [homeDescription, setHomeDescription] = useState("");
-  
-  // 4 Features
-  const [homeFeatures, setHomeFeatures] = useState<Array<{ title: string; icon: string }>>([]);
-  
-  const [homeBtnBookText, setHomeBtnBookText] = useState("");
-  const [homeBtnDetailsText, setHomeBtnDetailsText] = useState("");
-  const [homeSubtext1, setHomeSubtext1] = useState("");
-  const [homeSubtext2, setHomeSubtext2] = useState("");
-  
-  const [homeImageUrl, setHomeImageUrl] = useState("");
-  const [homeImageFile, setHomeImageFile] = useState<File | null>(null);
-  const [homeImagePreview, setHomeImagePreview] = useState("");
-
-  // 3 Bottom cards
-  const [homeBottomCards, setHomeBottomCards] = useState<Array<{ title: string; desc: string; icon: string }>>([]);
-
   const fetchPagesList = async () => {
     setLoadingList(true);
     try {
@@ -222,31 +206,6 @@ export default function TrialLandingAdminPage() {
       toast.error("Error loading landing pages list");
     } finally {
       setLoadingList(false);
-    }
-  };
-
-  const fetchHomepageTrialSettings = async () => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/homepage-trial`);
-      const result = await res.json();
-      if (res.ok && result.data) {
-        const d = result.data;
-        setHomeBadgeText(d.badgeText || "");
-        setHomeHeading(d.heading || "");
-        setHomeHeadingHighlight(d.headingHighlight || "");
-        setHomeHeadingSuffix(d.headingSuffix || "");
-        setHomeDescription(d.description || "");
-        setHomeFeatures(d.features || []);
-        setHomeBtnBookText(d.btnBookText || "");
-        setHomeBtnDetailsText(d.btnDetailsText || "");
-        setHomeSubtext1(d.subtext1 || "");
-        setHomeSubtext2(d.subtext2 || "");
-        setHomeImageUrl(d.imageUrl || "");
-        setHomeImagePreview(d.imageUrl || "");
-        setHomeBottomCards(d.bottomCards || []);
-      }
-    } catch (err) {
-      console.error("Error loading homepage trial settings:", err);
     }
   };
 
@@ -349,7 +308,6 @@ export default function TrialLandingAdminPage() {
   useEffect(() => {
     if (token) {
       fetchPagesList();
-      fetchHomepageTrialSettings();
     }
   }, [token]);
 
@@ -389,6 +347,57 @@ export default function TrialLandingAdminPage() {
     } catch (err) {
       console.error(err);
       toast.error("Error creating landing page");
+    }
+  };
+
+  /**
+   * The live /trial-landing page cannot be deleted, exactly as the Delete button
+   * on its row is disabled. Excluding it here means a select-all can never put
+   * the admin in front of a confirmation that will silently skip a row.
+   */
+  const deletablePages = pagesList.filter((page) => page.slug !== "trial-landing");
+
+  const toggleOne = (id: string) =>
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+
+  const allSelected =
+    deletablePages.length > 0 && selectedIds.length === deletablePages.length;
+
+  const toggleAll = () =>
+    setSelectedIds(allSelected ? [] : deletablePages.map((page) => page._id));
+
+  const selectedPages = pagesList.filter((page) => selectedIds.includes(page._id));
+
+  const handleBulkDeletePages = async () => {
+    if (!selectedIds.length || !token) return;
+
+    setBulkDeleting(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/trial-landing/delete-many`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ids: selectedIds }),
+        }
+      );
+      const result = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(result?.message || "Failed to delete");
+
+      toast.success(result?.message || "Landing pages deleted");
+      setSelectedIds([]);
+      setOpenBulkDialog(false);
+      fetchPagesList();
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Failed to delete the pages");
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -454,6 +463,71 @@ export default function TrialLandingAdminPage() {
     setOnboardingSteps(next);
   };
 
+  // Add / remove for the repeatable blocks. New entries copy the colour and
+  // icon settings of the last row so a fresh card looks like the rest instead
+  // of landing unstyled.
+  const addHeroBullet = () => setHeroBullets((p) => [...p, ""]);
+  const removeHeroBullet = (idx: number) =>
+    setHeroBullets((p) => p.filter((_, i) => i !== idx));
+
+  const addWhyCard = () =>
+    setWhyCards((p) => [
+      ...p,
+      {
+        title: "",
+        desc: "",
+        titleColor: p[p.length - 1]?.titleColor || "text-neutral-900",
+        bgColor: p[p.length - 1]?.bgColor || "bg-white",
+        borderColor: p[p.length - 1]?.borderColor || "border-neutral-200",
+        iconColor: p[p.length - 1]?.iconColor || "text-orange-500",
+        icon: p[p.length - 1]?.icon || "Star",
+      },
+    ]);
+  const removeWhyCard = (idx: number) =>
+    setWhyCards((p) => p.filter((_, i) => i !== idx));
+
+  const addChooseCard = () =>
+    setChooseCards((p) => [
+      ...p,
+      {
+        title: "",
+        desc: "",
+        icon: p[p.length - 1]?.icon || "Star",
+        bgColor: p[p.length - 1]?.bgColor || "bg-white",
+        borderColor: p[p.length - 1]?.borderColor || "border-neutral-200",
+        iconColor: p[p.length - 1]?.iconColor || "text-orange-500",
+      },
+    ]);
+  const removeChooseCard = (idx: number) =>
+    setChooseCards((p) => p.filter((_, i) => i !== idx));
+
+  const addAssessSkill = () =>
+    setAssessSkills((p) => [
+      ...p,
+      {
+        title: "",
+        desc: "",
+        textColor: p[p.length - 1]?.textColor || "text-neutral-900",
+        bgColor: p[p.length - 1]?.bgColor || "bg-white",
+        icon: p[p.length - 1]?.icon || "Star",
+      },
+    ]);
+  const removeAssessSkill = (idx: number) =>
+    setAssessSkills((p) => p.filter((_, i) => i !== idx));
+
+  const addOnboardingStep = () =>
+    setOnboardingSteps((p) => [
+      ...p,
+      {
+        num: String(p.length + 1).padStart(2, "0"),
+        title: "",
+        desc: "",
+        numBg: p[p.length - 1]?.numBg || "bg-orange-500",
+      },
+    ]);
+  const removeOnboardingStep = (idx: number) =>
+    setOnboardingSteps((p) => p.filter((_, i) => i !== idx));
+
   const handleSuitabilityBulletChange = (idx: number, val: string) => {
     const next = [...suitabilityBullets];
     next[idx] = val;
@@ -480,66 +554,6 @@ export default function TrialLandingAdminPage() {
 
   const removeFaqItem = (idx: number) => {
     setFaqItems(faqItems.filter((_, i) => i !== idx));
-  };
-
-  // ==========================================
-  // HOMEPAGE TRIAL BANNER SUBMIT & HANDLERS
-  // ==========================================
-  const handleHomeFeatureChange = (idx: number, field: "title" | "icon", val: string) => {
-    const next = [...homeFeatures];
-    next[idx] = { ...next[idx], [field]: val };
-    setHomeFeatures(next);
-  };
-
-  const handleHomeBottomCardChange = (idx: number, field: "title" | "desc" | "icon", val: string) => {
-    const next = [...homeBottomCards];
-    next[idx] = { ...next[idx], [field]: val };
-    setHomeBottomCards(next);
-  };
-
-  const handleHomeBannerSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const formData = new FormData();
-      formData.append("badgeText", homeBadgeText);
-      formData.append("heading", homeHeading);
-      formData.append("headingHighlight", homeHeadingHighlight);
-      formData.append("headingSuffix", homeHeadingSuffix);
-      formData.append("description", homeDescription);
-      formData.append("features", JSON.stringify(homeFeatures));
-      formData.append("btnBookText", homeBtnBookText);
-      formData.append("btnDetailsText", homeBtnDetailsText);
-      formData.append("subtext1", homeSubtext1);
-      formData.append("subtext2", homeSubtext2);
-      formData.append("bottomCards", JSON.stringify(homeBottomCards));
-
-      if (homeImageFile) {
-        formData.append("imageUrl", homeImageFile);
-      }
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/homepage-trial`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      const result = await res.json();
-      if (res.ok) {
-        toast.success("Homepage trial banner settings updated successfully!");
-        setHomeImageFile(null);
-        fetchHomepageTrialSettings();
-      } else {
-        toast.error(result.message || "Failed to update homepage trial settings");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Error updating homepage trial settings");
-    } finally {
-      setSaving(false);
-    }
   };
 
   const copyToClipboard = (slugText: string) => {
@@ -664,447 +678,266 @@ export default function TrialLandingAdminPage() {
               Trial & Landing Pages CMS
             </h1>
             <p className="text-neutral-500 mt-1">
-              Manage custom sub-landing pages or customize the main Homepage Free Trial Section Banner.
+              Create and manage custom sub-landing pages. The homepage trial banner is edited under Homepage Banner.
             </p>
           </div>
         </div>
 
-        {/* Global Tab Toggles */}
-        <div className="flex gap-2 border-b pb-3">
-          <button
-            onClick={() => setMainViewTab("list")}
-            className={`px-4 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
-              mainViewTab === "list"
-                ? "bg-orange-500 text-white shadow-sm"
-                : "bg-white border text-neutral-600 hover:bg-neutral-50"
-            }`}
-          >
-            <Layers size={16} />
-            Landing Pages CMS ({pagesList.length})
-          </button>
-          
-          <button
-            onClick={() => setMainViewTab("homeBanner")}
-            className={`px-4 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center gap-2 ${
-              mainViewTab === "homeBanner"
-                ? "bg-orange-500 text-white shadow-sm"
-                : "bg-white border text-neutral-600 hover:bg-neutral-50"
-            }`}
-          >
-            <Home size={16} />
-            Homepage Trial Banner Settings
-          </button>
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-bold text-neutral-800">
+              Dynamic Landing Pages
+              <span className="ml-2 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-600 align-middle">
+                {pagesList.length} total
+              </span>
+            </h2>
+            {selectedIds.length > 0 && (
+              <button
+                onClick={() => setOpenBulkDialog(true)}
+                className="ml-auto mr-3 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
+              >
+                <Trash size={16} /> Delete selected ({selectedIds.length})
+              </button>
+            )}
+            <button
+              onClick={() => setIsCreating(!isCreating)}
+              className="flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-white font-semibold bg-orange-500 hover:bg-orange-600 transition-colors shadow-sm whitespace-nowrap shrink-0 text-sm"
+            >
+              <Plus size={16} />
+              Create Landing Page
+            </button>
+          </div>
+
+          {/* Creation Box */}
+          {isCreating && (
+            <form onSubmit={handleCreatePageSubmit} className="bg-white border border-[#E2E8F0] rounded-xl p-6 shadow-sm space-y-4 max-w-2xl">
+              <h3 className="text-lg font-bold text-neutral-800 flex items-center gap-2">
+                <Settings size={18} className="text-orange-500" />
+                New Page Configurations
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-1">Page Title / Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="e.g. Dubai Summer Camp"
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white text-black"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-1">Custom URL Slug (Optional)</label>
+                  <input
+                    type="text"
+                    value={newSlug}
+                    onChange={(e) => setNewSlug(e.target.value)}
+                    placeholder="e.g. dubai-summer (defaults to slugified title)"
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white text-black"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreating(false)}
+                  className="px-4 py-2 border rounded-lg text-neutral-500 hover:bg-neutral-50 text-sm font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-1"
+                >
+                  <Plus size={16} /> Create Page
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Loading list */}
+          {loadingList ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+              <p className="text-neutral-400 text-sm mt-2">Fetching landing pages list...</p>
+            </div>
+          ) : (
+            <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-neutral-50 border-b border-neutral-100 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                    <th className="pl-6 pr-2 py-4 w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleAll}
+                        disabled={deletablePages.length === 0}
+                        aria-label="Select all landing pages"
+                        className="h-4 w-4 cursor-pointer accent-orange-500 disabled:cursor-not-allowed"
+                      />
+                    </th>
+                    <th className="px-6 py-4">Page Title</th>
+                    <th className="px-6 py-4">URL Route</th>
+                    <th className="px-6 py-4">Date Created</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100 text-sm text-neutral-700">
+                  {pagesList.map((page) => (
+                    <tr
+                      key={page._id}
+                      className={`transition-colors ${
+                        selectedIds.includes(page._id)
+                          ? "bg-orange-50/60"
+                          : "hover:bg-neutral-50/50"
+                      }`}
+                    >
+                      <td className="pl-6 pr-2 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(page._id)}
+                          onChange={() => toggleOne(page._id)}
+                          disabled={page.slug === "trial-landing"}
+                          aria-label={
+                            page.slug === "trial-landing"
+                              ? "The default landing page cannot be deleted"
+                              : `Select ${page.title}`
+                          }
+                          title={
+                            page.slug === "trial-landing"
+                              ? "The default landing page cannot be deleted"
+                              : undefined
+                          }
+                          className="h-4 w-4 cursor-pointer accent-orange-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        />
+                      </td>
+                      <td className="px-6 py-4 font-bold text-neutral-800">{page.title}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-slate-100 px-2.5 py-1 rounded text-xs font-semibold text-slate-600 select-all border">
+                            /{page.slug}
+                          </span>
+                          
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(page.slug)}
+                            className="p-1 text-neutral-400 hover:text-orange-500 border rounded bg-white"
+                            title="Copy Link"
+                          >
+                            <Copy size={13} />
+                          </button>
+                          
+                          <a
+                            href={`/${page.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 text-neutral-400 hover:text-orange-500 border rounded bg-white"
+                            title="Live Preview"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-xs text-neutral-400">
+                        {new Date(page.createdAt).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </td>
+                      <td className="px-6 py-4 text-right flex justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedPageId(page._id);
+                            fetchPageSettings(page._id);
+                          }}
+                          className="px-3.5 py-1.5 bg-orange-55 text-orange-600 border border-orange-200 hover:bg-orange-100 rounded-lg text-xs font-bold transition-all"
+                        >
+                          Edit Content
+                        </button>
+                        <button
+                          disabled={page.slug === "trial-landing"}
+                          onClick={() => handleDeletePage(page._id, page.slug)}
+                          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            page.slug === "trial-landing"
+                              ? "bg-neutral-55 text-neutral-300 border cursor-not-allowed"
+                              : "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                          }`}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  
+                  {pagesList.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-neutral-400">
+                        No custom landing pages found. Click the button to create your first page!
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* MAIN VIEW TAB 1: LANDING PAGES CMS LIST */}
-        {mainViewTab === "list" && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold text-neutral-800">Dynamic Landing Pages</h2>
-              <button
-                onClick={() => setIsCreating(!isCreating)}
-                className="flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-white font-semibold bg-orange-500 hover:bg-orange-600 transition-colors shadow-sm whitespace-nowrap shrink-0 text-sm"
-              >
-                <Plus size={16} />
-                Create Landing Page
-              </button>
-            </div>
 
-            {/* Creation Box */}
-            {isCreating && (
-              <form onSubmit={handleCreatePageSubmit} className="bg-white border border-[#E2E8F0] rounded-xl p-6 shadow-sm space-y-4 max-w-2xl">
-                <h3 className="text-lg font-bold text-neutral-800 flex items-center gap-2">
-                  <Settings size={18} className="text-orange-500" />
-                  New Page Configurations
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-1">Page Title / Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={newTitle}
-                      onChange={(e) => setNewTitle(e.target.value)}
-                      placeholder="e.g. Dubai Summer Camp"
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white text-black"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-1">Custom URL Slug (Optional)</label>
-                    <input
-                      type="text"
-                      value={newSlug}
-                      onChange={(e) => setNewSlug(e.target.value)}
-                      placeholder="e.g. dubai-summer (defaults to slugified title)"
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white text-black"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsCreating(false)}
-                    className="px-4 py-2 border rounded-lg text-neutral-500 hover:bg-neutral-50 text-sm font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-1"
-                  >
-                    <Plus size={16} /> Create Page
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* Loading list */}
-            {loadingList ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                <p className="text-neutral-400 text-sm mt-2">Fetching landing pages list...</p>
-              </div>
-            ) : (
-              <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-neutral-50 border-b border-neutral-100 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                      <th className="px-6 py-4">Page Title</th>
-                      <th className="px-6 py-4">URL Route</th>
-                      <th className="px-6 py-4">Date Created</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100 text-sm text-neutral-700">
-                    {pagesList.map((page) => (
-                      <tr key={page._id} className="hover:bg-neutral-50/50 transition-colors">
-                        <td className="px-6 py-4 font-bold text-neutral-800">{page.title}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <span className="bg-slate-100 px-2.5 py-1 rounded text-xs font-semibold text-slate-600 select-all border">
-                              /{page.slug}
-                            </span>
-                            
-                            <button
-                              type="button"
-                              onClick={() => copyToClipboard(page.slug)}
-                              className="p-1 text-neutral-400 hover:text-orange-500 border rounded bg-white"
-                              title="Copy Link"
-                            >
-                              <Copy size={13} />
-                            </button>
-                            
-                            <a
-                              href={`/${page.slug}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1 text-neutral-400 hover:text-orange-500 border rounded bg-white"
-                              title="Live Preview"
-                            >
-                              <ExternalLink size={13} />
-                            </a>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-xs text-neutral-400">
-                          {new Date(page.createdAt).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </td>
-                        <td className="px-6 py-4 text-right flex justify-end gap-2">
-                          <button
-                            onClick={() => {
-                              setSelectedPageId(page._id);
-                              fetchPageSettings(page._id);
-                            }}
-                            className="px-3.5 py-1.5 bg-orange-55 text-orange-600 border border-orange-200 hover:bg-orange-100 rounded-lg text-xs font-bold transition-all"
-                          >
-                            Edit Content
-                          </button>
-                          <button
-                            disabled={page.slug === "trial-landing"}
-                            onClick={() => handleDeletePage(page._id, page.slug)}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                              page.slug === "trial-landing"
-                                ? "bg-neutral-55 text-neutral-300 border cursor-not-allowed"
-                                : "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                            }`}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    
-                    {pagesList.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-12 text-center text-neutral-400">
-                          No custom landing pages found. Click the button to create your first page!
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* MAIN VIEW TAB 2: HOMEPAGE TRIAL BANNER SETTINGS FORM */}
-        {mainViewTab === "homeBanner" && (
-          <form onSubmit={handleHomeBannerSubmit} className="space-y-8 animate-fade-in">
-            
-            {/* Slogans & Headings */}
-            <div className="bg-white border rounded-xl shadow-sm p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-800 border-b pb-2">Banner Slogans & Headings</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Orange Badge Text</label>
-                  <input
-                    type="text"
-                    value={homeBadgeText}
-                    onChange={(e) => setHomeBadgeText(e.target.value)}
-                    placeholder="e.g. Free Trial Class"
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
-                  />
-                </div>
-                
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Heading (First part)</label>
-                  <input
-                    type="text"
-                    value={homeHeading}
-                    onChange={(e) => setHomeHeading(e.target.value)}
-                    placeholder="e.g. Let Your Child Experience"
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Heading Highlight (Underlined Orange Text)</label>
-                  <input
-                    type="text"
-                    value={homeHeadingHighlight}
-                    onChange={(e) => setHomeHeadingHighlight(e.target.value)}
-                    placeholder="e.g. Arabic Learning"
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black font-semibold text-[#FB6238]"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Heading Suffix (End part)</label>
-                  <input
-                    type="text"
-                    value={homeHeadingSuffix}
-                    onChange={(e) => setHomeHeadingSuffix(e.target.value)}
-                    placeholder="e.g. the Right Way"
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1.5">Section Subtitle / Description</label>
-                <textarea
-                  value={homeDescription}
-                  onChange={(e) => setHomeDescription(e.target.value)}
-                  rows={2}
-                  placeholder="Banner sub-description text..."
-                  className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
-                />
-              </div>
-            </div>
-
-            {/* 4 Feature Badges */}
+        {/* Bulk delete confirmation. Names the pages — each one is a live URL
+            that may be linked from an advert. */}
+        <Dialog open={openBulkDialog} onOpenChange={setOpenBulkDialog}>
+          <DialogContent className="max-w-md bg-white text-black">
+            <DialogHeader>
+              <DialogTitle>
+                Delete {selectedIds.length} landing page
+                {selectedIds.length === 1 ? "" : "s"}
+              </DialogTitle>
+            </DialogHeader>
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-800 pl-1">4 Middle Feature Circle Badges</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {homeFeatures.map((feat, idx) => (
-                  <div key={idx} className="bg-white border rounded-xl shadow-sm p-4 space-y-3">
-                    <span className="text-xs font-bold text-neutral-400 block">Feature Badge #{idx + 1}</span>
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-1">Title (HTML supported for breaks)</label>
-                      <input
-                        type="text"
-                        value={feat.title}
-                        onChange={(e) => handleHomeFeatureChange(idx, "title", e.target.value)}
-                        className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-1">Lucide Icon Name</label>
-                      <input
-                        type="text"
-                        value={feat.icon}
-                        onChange={(e) => handleHomeFeatureChange(idx, "icon", e.target.value)}
-                        placeholder="e.g. ClipboardCheck"
-                        className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black"
-                      />
-                    </div>
-                  </div>
+              <p className="text-sm text-neutral-500">
+                Their URLs will stop working and their images are deleted. This
+                cannot be undone.
+              </p>
+
+              <ul className="max-h-40 overflow-y-auto rounded-lg bg-neutral-50 border p-3 text-xs">
+                {selectedPages.slice(0, 20).map((page) => (
+                  <li key={page._id} className="truncate">
+                    {page.title} &mdash; /{page.slug}
+                  </li>
                 ))}
-              </div>
-            </div>
-
-            {/* Buttons & Subtexts */}
-            <div className="bg-white border rounded-xl shadow-sm p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-800 border-b pb-2">CTA Buttons & Bottom Subtext</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Book Button Text (Orange)</label>
-                  <input
-                    type="text"
-                    value={homeBtnBookText}
-                    onChange={(e) => setHomeBtnBookText(e.target.value)}
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Details Button Text (Outline)</label>
-                  <input
-                    type="text"
-                    value={homeBtnDetailsText}
-                    onChange={(e) => setHomeBtnDetailsText(e.target.value)}
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Subtext Row 1</label>
-                  <input
-                    type="text"
-                    value={homeSubtext1}
-                    onChange={(e) => setHomeSubtext1(e.target.value)}
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">Subtext Row 2</label>
-                  <input
-                    type="text"
-                    value={homeSubtext2}
-                    onChange={(e) => setHomeSubtext2(e.target.value)}
-                    className="w-full px-3.5 py-2 border rounded-lg bg-white text-black"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Illustration */}
-            <div className="bg-white border rounded-xl shadow-sm p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-800 border-b pb-2">Banner Student Image</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                <div className="border border-dashed rounded-lg p-5 flex flex-col items-center justify-center relative">
-                  <input
-                    type="file"
-                    id="home-image-file"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) {
-                        setHomeImageFile(e.target.files[0]);
-                        setHomeImagePreview(URL.createObjectURL(e.target.files[0]));
-                      }
-                    }}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <label htmlFor="home-image-file" className="cursor-pointer text-center group">
-                    <Upload className="h-8 w-8 text-neutral-400 group-hover:text-orange-500 mx-auto mb-1" />
-                    <span className="text-xs font-semibold text-orange-500 group-hover:underline">Choose New Image</span>
-                  </label>
-                  {homeImagePreview && (
-                    <div className="mt-4 w-32 h-32 bg-slate-50 rounded border flex items-center justify-center p-1 relative">
-                      <img src={homeImagePreview} alt="Home Banner Preview" className="max-w-full max-h-full object-contain" />
-                      <button
-                        type="button"
-                        onClick={() => { setHomeImageFile(null); setHomeImagePreview(homeImageUrl || ""); }}
-                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 text-[10px] hover:bg-red-600 font-bold px-1.5"
-                      >
-                        Reset
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <span className="text-xs text-neutral-400 leading-relaxed">
-                  This image represents the waving headphone girl student on the right side of the trial banner component. PNG images are recommended to merge with circular background vectors.
-                </span>
-              </div>
-            </div>
-
-            {/* Bottom 3 Cards */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-800 pl-1">3 Bottom Value Cards (Expert Teachers, Structured Learning, etc.)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {homeBottomCards.map((card, idx) => (
-                  <div key={idx} className="bg-white border rounded-xl shadow-sm p-4 space-y-3">
-                    <span className="text-xs font-bold text-neutral-400 block">Bottom Card #{idx + 1}</span>
-                    
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-1">Title</label>
-                      <input
-                        type="text"
-                        value={card.title}
-                        onChange={(e) => handleHomeBottomCardChange(idx, "title", e.target.value)}
-                        className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black font-semibold"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-1">Description</label>
-                      <textarea
-                        value={card.desc}
-                        onChange={(e) => handleHomeBottomCardChange(idx, "desc", e.target.value)}
-                        rows={2}
-                        className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-1">Lucide Icon Name</label>
-                      <input
-                        type="text"
-                        value={card.icon}
-                        onChange={(e) => handleHomeBottomCardChange(idx, "icon", e.target.value)}
-                        className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white text-black"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Submit Banner Save */}
-            <div className="flex justify-end pt-4 border-t">
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex items-center gap-2 py-3 px-8 rounded-lg text-white font-medium bg-gradient-to-r from-[#FF60A8] to-[#FB6238] hover:from-[#e05493] hover:to-[#e05731] disabled:opacity-50 transition-all shadow-md text-sm font-bold"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Saving Banner Settings...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-5 w-5" />
-                    Save Banner Settings
-                  </>
+                {selectedPages.length > 20 && (
+                  <li className="pt-1 font-semibold">
+                    …and {selectedPages.length - 20} more
+                  </li>
                 )}
-              </button>
-            </div>
+              </ul>
 
-          </form>
-        )}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  disabled={bulkDeleting}
+                  onClick={() => setOpenBulkDialog(false)}
+                  className="text-black border"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleBulkDeletePages}
+                  disabled={bulkDeleting}
+                  className="bg-red-600 text-white hover:bg-red-700"
+                >
+                  {bulkDeleting ? "Deleting…" : "Delete"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
       </div>
     );
@@ -1368,7 +1201,9 @@ export default function TrialLandingAdminPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <span className="block text-sm font-medium text-neutral-700">Checklist Bullet points (4 Items)</span>
+                  <span className="block text-sm font-medium text-neutral-700">
+                    Checklist Bullet points ({heroBullets.length})
+                  </span>
                   {heroBullets.map((bullet, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <span className="text-xs font-bold text-neutral-400">#{idx + 1}</span>
@@ -1379,8 +1214,23 @@ export default function TrialLandingAdminPage() {
                         placeholder="Bullet text..."
                         className="w-full px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-orange-500/20 text-xs bg-white text-black"
                       />
+                      <button
+                        type="button"
+                        onClick={() => removeHeroBullet(idx)}
+                        aria-label={`Remove bullet ${idx + 1}`}
+                        className="p-1.5 text-red-500 hover:text-white hover:bg-red-500 border rounded-lg transition-colors shrink-0"
+                      >
+                        <Trash size={14} />
+                      </button>
                     </div>
                   ))}
+                  <button
+                    type="button"
+                    onClick={addHeroBullet}
+                    className="mt-1 text-xs font-semibold text-orange-500 hover:underline flex items-center gap-1"
+                  >
+                    <Plus size={14} /> Add Bullet
+                  </button>
                 </div>
               </div>
 
@@ -1449,11 +1299,30 @@ export default function TrialLandingAdminPage() {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-800 pl-1">Cards Value Proposition Configuration (4 Cards)</h3>
+              <div className="flex items-center justify-between gap-3 pl-1">
+                <h3 className="text-lg font-semibold text-neutral-800">Cards Value Proposition Configuration ({whyCards.length})</h3>
+                <button
+                  type="button"
+                  onClick={addWhyCard}
+                  className="text-xs font-semibold text-orange-500 hover:underline flex items-center gap-1"
+                >
+                  <Plus size={14} /> Add Card
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {whyCards.map((card, idx) => (
                   <div key={idx} className="bg-white border rounded-xl shadow-sm p-4 space-y-3">
-                    <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider block">Card #{idx + 1}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider block">Card #{idx + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeWhyCard(idx)}
+                        aria-label={`Remove card ${idx + 1}`}
+                        className="p-1 text-red-500 hover:text-white hover:bg-red-500 border rounded-lg transition-colors shrink-0"
+                      >
+                        <Trash size={13} />
+                      </button>
+                    </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 mb-1">Title</label>
                       <input
@@ -1562,11 +1431,30 @@ export default function TrialLandingAdminPage() {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-800 pl-1">Cards Value Grid Configuration (6 Cards)</h3>
+              <div className="flex items-center justify-between gap-3 pl-1">
+                <h3 className="text-lg font-semibold text-neutral-800">Cards Value Grid Configuration ({chooseCards.length})</h3>
+                <button
+                  type="button"
+                  onClick={addChooseCard}
+                  className="text-xs font-semibold text-orange-500 hover:underline flex items-center gap-1"
+                >
+                  <Plus size={14} /> Add Card
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {chooseCards.map((card, idx) => (
                   <div key={idx} className="bg-white border rounded-xl shadow-sm p-5 space-y-3">
-                    <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider block">Choose Card #{idx + 1}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider block">Choose Card #{idx + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeChooseCard(idx)}
+                        aria-label={`Remove card ${idx + 1}`}
+                        className="p-1 text-red-500 hover:text-white hover:bg-red-500 border rounded-lg transition-colors shrink-0"
+                      >
+                        <Trash size={13} />
+                      </button>
+                    </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 mb-1">Title</label>
                       <input
@@ -1648,13 +1536,32 @@ export default function TrialLandingAdminPage() {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-800 pl-1">4 Step Cards Configuration</h3>
+              <div className="flex items-center justify-between gap-3 pl-1">
+                <h3 className="text-lg font-semibold text-neutral-800">Step Cards Configuration ({onboardingSteps.length})</h3>
+                <button
+                  type="button"
+                  onClick={addOnboardingStep}
+                  className="text-xs font-semibold text-orange-500 hover:underline flex items-center gap-1"
+                >
+                  <Plus size={14} /> Add Step
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {onboardingSteps.map((step, idx) => (
                   <div key={idx} className="bg-white border rounded-xl shadow-sm p-5 space-y-3">
                     <div className="flex items-center justify-between border-b pb-2">
                       <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Step #{idx + 1}</span>
-                      <span className="text-xs font-black text-white px-2.5 py-0.5 rounded-full bg-blue-600">Circle #{step.num}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-white px-2.5 py-0.5 rounded-full bg-blue-600">Circle #{step.num}</span>
+                        <button
+                        type="button"
+                        onClick={() => removeOnboardingStep(idx)}
+                        aria-label={`Remove step ${idx + 1}`}
+                        className="p-1 text-red-500 hover:text-white hover:bg-red-500 border rounded-lg transition-colors shrink-0"
+                      >
+                        <Trash size={13} />
+                      </button>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 mb-1">Step Title</label>
@@ -1720,11 +1627,30 @@ export default function TrialLandingAdminPage() {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-neutral-800 pl-1">Radial skills Hub Detail (6 Skills)</h3>
+              <div className="flex items-center justify-between gap-3 pl-1">
+                <h3 className="text-lg font-semibold text-neutral-800">Radial skills Hub Detail ({assessSkills.length})</h3>
+                <button
+                  type="button"
+                  onClick={addAssessSkill}
+                  className="text-xs font-semibold text-orange-500 hover:underline flex items-center gap-1"
+                >
+                  <Plus size={14} /> Add Skill
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {assessSkills.map((skill, idx) => (
                   <div key={idx} className="bg-white border rounded-xl shadow-sm p-5 space-y-3">
-                    <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider block">Skill #{idx + 1}: {skill.title}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider block">Skill #{idx + 1}: {skill.title}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeAssessSkill(idx)}
+                        aria-label={`Remove skill ${idx + 1}`}
+                        className="p-1 text-red-500 hover:text-white hover:bg-red-500 border rounded-lg transition-colors shrink-0"
+                      >
+                        <Trash size={13} />
+                      </button>
+                    </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 mb-1">Title</label>
                       <input

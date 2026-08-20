@@ -347,6 +347,96 @@ export const updateTrialLandingSettings = async (req: Request, res: Response): P
 };
 
 // DELETE: Delete specific trial landing page (Admin Only)
+/**
+ * POST: Delete several landing pages at once (Admin Only).
+ *
+ * The last remaining default page is skipped rather than deleted, exactly as
+ * the single delete refuses it — a select-all must not be able to take the live
+ * /trial-landing page off the site. The response says how many were skipped so
+ * the count on screen is never a surprise.
+ */
+export const deleteManyTrialLandings = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: "No landing pages selected" });
+    }
+
+    if (ids.length > 200) {
+      return res.status(400).json({
+        success: false,
+        message: "Please delete at most 200 landing pages at a time",
+      });
+    }
+
+    const pages = await TrialLanding.find({ _id: { $in: ids } });
+    const defaultTotal = await TrialLanding.countDocuments({ slug: "trial-landing" });
+
+    const deletable: any[] = [];
+    let defaultsKept = 0;
+    let remainingDefaults = defaultTotal;
+
+    for (const page of pages) {
+      if (page.slug === "trial-landing" && remainingDefaults <= 1) {
+        defaultsKept += 1;
+        continue;
+      }
+      if (page.slug === "trial-landing") remainingDefaults -= 1;
+      deletable.push(page);
+    }
+
+    if (!deletable.length) {
+      // Only blame the default page when it really was the obstacle. Ids that
+      // simply do not exist any more are not an error — they read as "somebody
+      // already deleted this", which is exactly what happened.
+      if (defaultsKept) {
+        return res.status(400).json({
+          success: false,
+          message: "The default trial landing page cannot be deleted",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "0 landing page(s) deleted successfully!",
+        deletedCount: 0,
+        skipped: 0,
+      });
+    }
+
+    const deletableIds = deletable.map((page) => page._id);
+    const result = await TrialLanding.deleteMany({ _id: { $in: deletableIds } });
+
+    for (const page of deletable) {
+      for (const publicId of [
+        page.heroImagePublicId,
+        page.suitabilityImagePublicId,
+        page.ctaImagePublicId,
+      ]) {
+        if (!publicId) continue;
+        try {
+          await cloudinary.uploader.destroy(publicId);
+        } catch (err) {
+          console.error(`Could not remove Cloudinary asset ${publicId}:`, err);
+        }
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message:
+        `${result.deletedCount} landing page(s) deleted successfully!` +
+        (defaultsKept ? " The default trial landing page was kept." : ""),
+      deletedCount: result.deletedCount,
+      skipped: defaultsKept,
+    });
+  } catch (error) {
+    console.error("Error deleting landing pages:", error);
+    res.status(500).json({ success: false, message: "Failed to delete the landing pages" });
+  }
+};
+
 export const deleteTrialLanding = async (req: Request, res: Response): Promise<any> => {
   try {
     const settings = await TrialLanding.findById(req.params.id);

@@ -76,6 +76,49 @@ export const createSchoolLogo = async (req: Request, res: Response): Promise<any
 };
 
 // DELETE: Remove school logo (Admin Only)
+/** POST: Delete several school logos at once (Admin Only). */
+export const deleteManySchoolLogos = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: "No logos selected" });
+    }
+
+    // An upper bound so one malformed request cannot wipe the list.
+    if (ids.length > 200) {
+      return res.status(400).json({
+        success: false,
+        message: "Please delete at most 200 logos at a time",
+      });
+    }
+
+    const logos = await SchoolLogo.find({ _id: { $in: ids } });
+
+    const result = await SchoolLogo.deleteMany({ _id: { $in: ids } });
+
+    // After the records are gone, so a Cloudinary hiccup cannot leave a logo
+    // that is listed but has no image.
+    for (const logo of logos) {
+      if (!logo.logoPublicId) continue;
+      try {
+        await cloudinary.uploader.destroy(logo.logoPublicId);
+      } catch (err) {
+        console.error(`Could not remove Cloudinary asset ${logo.logoPublicId}:`, err);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} logo(s) deleted successfully!`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Error deleting school logos:", error);
+    res.status(500).json({ success: false, message: "Failed to delete the logos" });
+  }
+};
+
 export const deleteSchoolLogo = async (req: Request, res: Response): Promise<any> => {
   try {
     const { id } = req.params;

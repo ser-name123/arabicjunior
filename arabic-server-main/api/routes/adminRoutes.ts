@@ -1,6 +1,7 @@
 import express from "express";
 import { authenticateAdmin } from "../middleware/authMiddleware";
 import { authLimiter } from "../middleware/rateLimiters";
+import { verifyTurnstile } from "../middleware/turnstileMiddleware";
 import {
   adminLogin,
   adminProfile,
@@ -33,7 +34,7 @@ router.get("/profile", authenticateAdmin, adminProfile);
 router.post("/signup", authenticateAdmin, adminSignup);
 
 // ADMIN LOGIN --- POST
-router.post("/login", authLimiter, adminLogin);
+router.post("/login", authLimiter, verifyTurnstile, adminLogin);
 
 router.post("/google", authLimiter, googleAdminLogin);
 

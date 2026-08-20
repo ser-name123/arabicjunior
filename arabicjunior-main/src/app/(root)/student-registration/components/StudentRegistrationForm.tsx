@@ -33,6 +33,8 @@ import PhoneInput, {
 import { Progress } from "@/components/ui/progress";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import Turnstile from "@/components/Turnstile";
+import useTurnstile from "@/hooks/useTurnstile";
 import { useCountryCode } from "@/hooks/useCountry";
 import { Checkbox } from "@/components/ui/checkbox";
 import { addDays } from "date-fns";
@@ -200,6 +202,7 @@ const StudentRegistrationForm = () => {
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [classType, setClassType] = React.useState<ClassType>("individual");
   const { next, prev, total, current, hasNext, hasPrev, isLast } = useSteps();
+  const captcha = useTurnstile();
 
   // form methods
   const methods = useForm<z.infer<typeof formSchema>>({
@@ -238,6 +241,11 @@ const StudentRegistrationForm = () => {
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!captcha.ready) {
+      toast.error(captcha.notReadyMessage);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -273,13 +281,15 @@ const StudentRegistrationForm = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, turnstileToken: captcha.token }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
         toast.error(data.message);
+        // Single-use token: it is spent whether or not the server accepted it.
+        captcha.reset();
         throw new Error(res.statusText);
       }
 
@@ -727,6 +737,15 @@ const StudentRegistrationForm = () => {
               </div>
               {/* SECOND STEP END */}
             </Steps>
+
+            {isLast && (
+              <div className="mt-10 max-w-screen-sm mx-auto">
+                <Turnstile
+                  onVerify={captcha.onVerify}
+                  controlRef={captcha.controlRef}
+                />
+              </div>
+            )}
 
             <div className="navigation mt-14 flex items-center gap-x-4 max-w-screen-sm mx-auto">
               {hasPrev && (

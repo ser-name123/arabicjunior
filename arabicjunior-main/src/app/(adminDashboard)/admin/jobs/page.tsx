@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
-import { Briefcase, Plus, FileText, CheckCircle2, User, Globe, Calendar, Award, DollarSign, Clock, MapPin, Mail, Phone, ExternalLink } from "lucide-react";
+import { Briefcase, Plus, FileText, CheckCircle2, User, Globe, Calendar, Award, DollarSign, Clock, MapPin, Mail, Phone, ExternalLink, Maximize2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/admin/data-table";
@@ -15,6 +15,32 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import useAuthAdmin from "@/hooks/useAuthAdmin";
+
+/** PDF, JPG, DOCX… taken from the stored Cloudinary link. */
+const fileExtension = (url?: string): string => {
+  if (!url) return "";
+  const lastSegment = url.split("?")[0].split("/").pop() || "";
+  const dot = lastSegment.lastIndexOf(".");
+  return dot > -1 ? lastSegment.slice(dot + 1).toUpperCase() : "";
+};
+
+/**
+ * The name the candidate gave the file. Applications submitted before the
+ * server started keeping it have nothing to show, and the Cloudinary link is a
+ * random id — so those fall back to the numbered label plus the file type
+ * rather than a meaningless string of characters.
+ */
+const documentLabel = (app: any, slot: number): string => {
+  const stored = app?.[`doc_${slot}_name`];
+  if (typeof stored === "string" && stored.trim()) return stored.trim();
+
+  const extension = fileExtension(app?.[`doc_${slot}`]);
+  return extension ? `Document ${slot} (${extension})` : `Document ${slot}`;
+};
+
+/** The slots that actually hold a file, in order. */
+const filledDocumentSlots = (app: any): number[] =>
+  [1, 2, 3, 4].filter((slot) => Boolean(app?.[`doc_${slot}`]));
 
 const columns: ColumnDef<any>[] = [
   {
@@ -86,6 +112,15 @@ export default function JobsPage() {
   const [viewingApp, setViewingApp] = useState<any | null>(null);
   const [openViewModal, setOpenViewModal] = useState(false);
 
+  // Bulk selection. Kept per tab, because the two tables hold different things
+  // and a tick carried across would delete the wrong kind of record.
+  const [selectedJobs, setSelectedJobs] = useState<any[]>([]);
+  const [selectedApps, setSelectedApps] = useState<any[]>([]);
+  const [selectionKey, setSelectionKey] = useState(0);
+  const [openBulkJobsDialog, setOpenBulkJobsDialog] = useState(false);
+  const [openBulkAppsDialog, setOpenBulkAppsDialog] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   const fetchJobs = useCallback(async () => {
     if (!token) return;
     setLoading(true);
@@ -151,6 +186,78 @@ export default function JobsPage() {
     } catch (err) {
       console.error(err);
       toast.error("Something went wrong. Please try again.", { id: "job-delete" });
+    }
+  };
+
+  // Switching tabs clears both sets: the rows behind the ticks are no longer on
+  // screen, and a bulk delete afterwards would hit records nobody looked at.
+  useEffect(() => {
+    setSelectedJobs([]);
+    setSelectedApps([]);
+    setSelectionKey((key) => key + 1);
+  }, [activeTab]);
+
+  const handleBulkDeleteJobs = async () => {
+    if (!selectedJobs.length || !token) return;
+
+    setBulkDeleting(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/jobs/delete-many`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ids: selectedJobs.map((row) => row._id) }),
+        }
+      );
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.message || "Failed to delete");
+
+      toast.success(json?.message || "Positions deleted");
+      setSelectedJobs([]);
+      setSelectionKey((key) => key + 1);
+      setOpenBulkJobsDialog(false);
+      fetchJobs();
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleBulkDeleteApps = async () => {
+    if (!selectedApps.length || !token) return;
+
+    setBulkDeleting(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/teacher-registrations/delete-many`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ids: selectedApps.map((row) => row._id) }),
+        }
+      );
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.message || "Failed to delete");
+
+      toast.success(json?.message || "Applications deleted");
+      setSelectedApps([]);
+      setSelectionKey((key) => key + 1);
+      setOpenBulkAppsDialog(false);
+      fetchApplications();
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -238,11 +345,13 @@ export default function JobsPage() {
       accessorKey: "personal_image",
       header: "Supporting Docs",
       cell: ({ row }) => {
-        const docs = [];
-        if (row.original.doc_1) docs.push({ label: "Doc 1", url: row.original.doc_1 });
-        if (row.original.doc_2) docs.push({ label: "Doc 2", url: row.original.doc_2 });
-        if (row.original.doc_3) docs.push({ label: "Doc 3", url: row.original.doc_3 });
-        if (row.original.doc_4) docs.push({ label: "Doc 4", url: row.original.doc_4 });
+        // The badges stay short so the column keeps its width; the real file
+        // name is on the tooltip.
+        const docs = filledDocumentSlots(row.original).map((slot) => ({
+          label: `Doc ${slot}`,
+          title: documentLabel(row.original, slot),
+          url: row.original[`doc_${slot}`] as string,
+        }));
 
         return (
           <div className="flex flex-wrap gap-1">
@@ -255,6 +364,7 @@ export default function JobsPage() {
                   href={doc.url}
                   target="_blank"
                   rel="noreferrer"
+                  title={doc.title}
                   className="px-2 py-0.5 border rounded text-[10px] font-semibold text-orange-500 border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors shadow-sm inline-flex items-center gap-0.5"
                 >
                   {doc.label} <ExternalLink size={8} />
@@ -292,6 +402,24 @@ export default function JobsPage() {
             Manage your active job listings and view submissions from the teacher registration form in one place.
           </p>
         </div>
+        {selectedJobs.length > 0 && activeTab === "positions" && (
+          <Button
+            onClick={() => setOpenBulkJobsDialog(true)}
+            className="gap-2 bg-red-600 hover:bg-red-700 text-white self-start"
+          >
+            <Trash2 size={16} /> Delete selected ({selectedJobs.length})
+          </Button>
+        )}
+
+        {selectedApps.length > 0 && activeTab === "applications" && (
+          <Button
+            onClick={() => setOpenBulkAppsDialog(true)}
+            className="gap-2 bg-red-600 hover:bg-red-700 text-white self-start"
+          >
+            <Trash2 size={16} /> Delete selected ({selectedApps.length})
+          </Button>
+        )}
+
         {activeTab === "positions" && (
           <Button
             onClick={() => router.push("/admin/jobs/new")}
@@ -338,6 +466,9 @@ export default function JobsPage() {
             onPageChange={() => {}}
             pageSize={100}
             onPageSizeChange={() => {}}
+            enableSelection
+            onSelectionChange={(rows) => setSelectedJobs(rows as any[])}
+            selectionResetKey={`jobs-${selectionKey}`}
             showActions={true}
             actions={["edit", "delete"]}
             onAction={(type, row) => {
@@ -361,6 +492,9 @@ export default function JobsPage() {
             onPageChange={() => {}}
             pageSize={100}
             onPageSizeChange={() => {}}
+            enableSelection
+            onSelectionChange={(rows) => setSelectedApps(rows as any[])}
+            selectionResetKey={`apps-${selectionKey}`}
             showActions={true}
             actions={["view", "delete"]}
             onAction={(type, row) => {
@@ -436,6 +570,106 @@ export default function JobsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Bulk delete: job positions. */}
+      <Dialog open={openBulkJobsDialog} onOpenChange={setOpenBulkJobsDialog}>
+        <DialogContent className="max-w-md bg-white text-black p-6 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Delete {selectedJobs.length} position
+              {selectedJobs.length === 1 ? "" : "s"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-neutral-500">
+              These will be removed from the Careers page. Applications already
+              received are kept.
+            </p>
+
+            <ul className="max-h-40 overflow-y-auto rounded-lg bg-neutral-50 border p-3 text-xs">
+              {selectedJobs.slice(0, 20).map((row) => (
+                <li key={row._id} className="truncate">
+                  {row.title} &mdash; {row.department}
+                </li>
+              ))}
+              {selectedJobs.length > 20 && (
+                <li className="pt-1 font-semibold">
+                  …and {selectedJobs.length - 20} more
+                </li>
+              )}
+            </ul>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                disabled={bulkDeleting}
+                onClick={() => setOpenBulkJobsDialog(false)}
+                className="text-black"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleBulkDeleteJobs}
+                disabled={bulkDeleting}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                {bulkDeleting ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk delete: candidate applications. */}
+      <Dialog open={openBulkAppsDialog} onOpenChange={setOpenBulkAppsDialog}>
+        <DialogContent className="max-w-md bg-white text-black p-6 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Delete {selectedApps.length} application
+              {selectedApps.length === 1 ? "" : "s"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-neutral-500">
+              Their photos and uploaded documents are deleted too. This cannot be
+              undone.
+            </p>
+
+            <ul className="max-h-40 overflow-y-auto rounded-lg bg-neutral-50 border p-3 text-xs">
+              {selectedApps.slice(0, 20).map((row) => (
+                <li key={row._id} className="truncate">
+                  {row.first_name} {row.last_name} &mdash; {row.email}
+                </li>
+              ))}
+              {selectedApps.length > 20 && (
+                <li className="pt-1 font-semibold">
+                  …and {selectedApps.length - 20} more
+                </li>
+              )}
+            </ul>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                disabled={bulkDeleting}
+                onClick={() => setOpenBulkAppsDialog(false)}
+                className="text-black"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleBulkDeleteApps}
+                disabled={bulkDeleting}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                {bulkDeleting ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Application Details View Dialog */}
       <Dialog open={openViewModal} onOpenChange={setOpenViewModal}>
         <DialogContent className="max-w-3xl bg-white overflow-y-auto max-h-[90vh] p-6 rounded-xl text-black">
@@ -450,12 +684,25 @@ export default function JobsPage() {
               {/* Header Profile Summary */}
               <div className="flex flex-col sm:flex-row items-center gap-4 bg-neutral-50 p-4 rounded-xl border">
                 {viewingApp.personal_image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={viewingApp.personal_image}
-                    alt="Personal"
-                    className="w-20 h-20 rounded-full object-cover border bg-white shadow"
-                  />
+                  // The thumbnail is too small to judge a candidate by, so it
+                  // opens the full-size upload in a new tab.
+                  <a
+                    href={viewingApp.personal_image}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Open the full-size photo"
+                    className="group relative shrink-0 rounded-full"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={viewingApp.personal_image}
+                      alt="Personal"
+                      className="w-20 h-20 rounded-full object-cover border bg-white shadow"
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center rounded-full bg-scrim/40 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      <Maximize2 size={16} />
+                    </span>
+                  </a>
                 ) : (
                   <div className="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center text-2xl font-bold text-orange-500">
                     {viewingApp.first_name[0]}{viewingApp.last_name[0]}
@@ -591,52 +838,32 @@ export default function JobsPage() {
                   <FileText size={14} /> Attached Credentials & Supporting Documents
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                  {viewingApp.doc_1 ? (
-                    <a
-                      href={viewingApp.doc_1}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex flex-col items-center justify-center p-3 border rounded-lg hover:bg-neutral-50 text-center transition-all bg-neutral-50/20"
-                    >
-                      <FileText className="text-orange-500 h-8 w-8 mb-1.5" />
-                      <span className="text-[10px] font-semibold text-neutral-700">Document 1</span>
-                    </a>
-                  ) : null}
-                  {viewingApp.doc_2 ? (
-                    <a
-                      href={viewingApp.doc_2}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex flex-col items-center justify-center p-3 border rounded-lg hover:bg-neutral-50 text-center transition-all bg-neutral-50/20"
-                    >
-                      <FileText className="text-orange-500 h-8 w-8 mb-1.5" />
-                      <span className="text-[10px] font-semibold text-neutral-700">Document 2</span>
-                    </a>
-                  ) : null}
-                  {viewingApp.doc_3 ? (
-                    <a
-                      href={viewingApp.doc_3}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex flex-col items-center justify-center p-3 border rounded-lg hover:bg-neutral-50 text-center transition-all bg-neutral-50/20"
-                    >
-                      <FileText className="text-orange-500 h-8 w-8 mb-1.5" />
-                      <span className="text-[10px] font-semibold text-neutral-700">Document 3</span>
-                    </a>
-                  ) : null}
-                  {viewingApp.doc_4 ? (
-                    <a
-                      href={viewingApp.doc_4}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex flex-col items-center justify-center p-3 border rounded-lg hover:bg-neutral-50 text-center transition-all bg-neutral-50/20"
-                    >
-                      <FileText className="text-orange-500 h-8 w-8 mb-1.5" />
-                      <span className="text-[10px] font-semibold text-neutral-700">Document 4</span>
-                    </a>
-                  ) : null}
-                  {!viewingApp.doc_1 && !viewingApp.doc_2 && !viewingApp.doc_3 && !viewingApp.doc_4 && (
+                  {filledDocumentSlots(viewingApp).length === 0 ? (
                     <p className="text-xs text-neutral-400 col-span-full italic text-center py-2">No supporting documents uploaded.</p>
+                  ) : (
+                    filledDocumentSlots(viewingApp).map((slot) => {
+                      // Already carries its own extension, either from the
+                      // stored name or from the fallback label.
+                      const name = documentLabel(viewingApp, slot);
+
+                      return (
+                        <a
+                          key={slot}
+                          href={viewingApp[`doc_${slot}`]}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={name}
+                          className="flex flex-col items-center justify-center p-3 border rounded-lg hover:bg-neutral-50 text-center transition-all bg-neutral-50/20"
+                        >
+                          <FileText className="text-orange-500 h-8 w-8 mb-1.5" />
+                          {/* A long file name must not stretch the tile, so it
+                              truncates and the full name sits on the tooltip. */}
+                          <span className="w-full truncate text-[10px] font-semibold text-neutral-700">
+                            {name}
+                          </span>
+                        </a>
+                      );
+                    })
                   )}
                 </div>
               </div>

@@ -393,6 +393,41 @@ export const updateJob = async (req: Request, res: Response): Promise<any> => {
 };
 
 // DELETE: Remove job position (Admin Only)
+/**
+ * POST: Delete several job positions at once (Admin Only).
+ *
+ * Applications already received are left alone — they are stored separately and
+ * a closed position is not a reason to lose the people who applied to it.
+ */
+export const deleteManyJobs = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: "No positions selected" });
+    }
+
+    // An upper bound so one malformed request cannot wipe the list.
+    if (ids.length > 200) {
+      return res.status(400).json({
+        success: false,
+        message: "Please delete at most 200 positions at a time",
+      });
+    }
+
+    const result = await Job.deleteMany({ _id: { $in: ids } });
+
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} position(s) deleted successfully!`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Error deleting jobs:", error);
+    res.status(500).json({ success: false, message: "Failed to delete the positions" });
+  }
+};
+
 export const deleteJob = async (req: Request, res: Response): Promise<any> => {
   try {
     const job = await Job.findById(req.params.id);

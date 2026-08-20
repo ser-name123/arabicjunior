@@ -13,3 +13,18 @@ export const authLimiter = rateLimit({
   // ordinary repeated logins.
   skipSuccessfulRequests: true,
 });
+
+// Every chatbot message can trigger a paid AI call, so this endpoint is the one
+// place on the site where an abusive script costs the academy real money rather
+// than just bandwidth. Thirty messages in ten minutes is far more than a parent
+// asking about class times will ever need, and far less than a loop can spend.
+export const chatbotMessageLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  message: {
+    status: "error",
+    message: "You have sent a lot of messages. Please wait a few minutes and try again.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

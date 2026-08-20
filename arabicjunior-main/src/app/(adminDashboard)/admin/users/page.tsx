@@ -5,7 +5,7 @@ import { DataTable } from "@/components/admin/data-table"
 import { ColumnDef } from "@tanstack/react-table"
 import { Input } from "@/components/ui/input-2"
 import useAuthAdmin from "@/hooks/useAuthAdmin"
-import { Calendar1, FileSpreadsheet, Search, User, Users2 } from "lucide-react"
+import { Calendar1, FileSpreadsheet, Search, Trash2, User, Users2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { format } from "date-fns"
 
@@ -87,10 +87,48 @@ type User = {
     classStartTime: string
     howFindUs: string
     userIP: string
+    clientInfo?: {
+        userAgent?: string
+        browser?: string
+        operatingSystem?: string
+        deviceType?: string
+        timezone?: string
+        gmtOffset?: string
+        localTime?: string
+        language?: string
+        languages?: string
+        screenSize?: string
+        viewportSize?: string
+        pixelRatio?: string
+        colorDepth?: string
+        cpuCores?: string
+        deviceMemory?: string
+        touchSupport?: string
+        connectionType?: string
+        referrer?: string
+        pageUrl?: string
+        ipAddress?: string
+        country?: string
+        countryCode?: string
+        region?: string
+        city?: string
+        postalCode?: string
+        ipTimezone?: string
+        isp?: string
+        lookupError?: string
+    }
     gender: string
     attended: boolean
     createdAt?: any
 }
+
+/** One label + value cell. Falls back to a dash when the browser withheld it. */
+const Detail = ({ label, value }: { label: string; value?: string }) => (
+    <div>
+        <p className="text-xs text-gray-600">{label}</p>
+        <p className="font-semibold break-words">{value || "-"}</p>
+    </div>
+)
 
 export default function TrialUsersPage() {
     const { token } = useAuthAdmin()
@@ -101,11 +139,18 @@ export default function TrialUsersPage() {
     const [loading, setLoading] = useState(false)
     const [currentPage, setCurrentPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
+    const [total, setTotal] = useState(0)
     const [pageSize, setPageSize] = useState(10)
     const [selectedUser, setSelectedUser] = useState<User | null>(null)
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
     const [deletingUser, setDeletingUser] = useState<User | null>(null)
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
+
+    const [selectedRows, setSelectedRows] = useState<User[]>([])
+    /** Bumped after a delete or a filter change to clear the ticked rows. */
+    const [selectionKey, setSelectionKey] = useState(0)
+    const [openBulkDialog, setOpenBulkDialog] = useState(false)
+    const [bulkDeleting, setBulkDeleting] = useState(false)
 
     const columns: ColumnDef<User>[] = [
         { accessorKey: "firstName", header: "Firstname" },
@@ -163,6 +208,7 @@ export default function TrialUsersPage() {
             const data: any[] = json.data
             setData(data ?? [])
             setTotalPages(json.pagination?.totalPages || 1)
+            setTotal(json.pagination?.total ?? 0)
         } catch (err) {
             console.error("Error fetching Users:", err)
             setData([])
@@ -174,6 +220,55 @@ export default function TrialUsersPage() {
     useEffect(() => {
         if (token) fetchData()
     }, [debouncedSearch, currentPage, pageSize, dateRange, token, _attended]) // ✅ use debouncedSearch, not raw search
+
+    // Ticks must not survive a page or filter change: the rows behind them are
+    // gone, and a later bulk delete would hit records nobody looked at.
+    useEffect(() => {
+        setSelectedRows([])
+        setSelectionKey((k) => k + 1)
+    }, [currentPage, pageSize, dateRange, debouncedSearch, _attended])
+
+    const handleBulkDelete = async () => {
+        if (!selectedRows.length || !token) return
+
+        setBulkDeleting(true)
+        try {
+            const res = await fetch(
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/trial-users/delete-many`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ ids: selectedRows.map((u) => u._id) }),
+                }
+            )
+            const json = await res.json().catch(() => null)
+            if (!res.ok) throw new Error(json?.message || "Failed to delete")
+
+            toast.success(json?.message || "Trial students deleted")
+
+            // The page may now be past the end — after deleting the only rows on
+            // page 4, staying there would show "No results".
+            const remaining = total - selectedRows.length
+            const lastPage = Math.max(1, Math.ceil(remaining / pageSize))
+            if (currentPage > lastPage) {
+                setCurrentPage(lastPage)
+            } else {
+                fetchData()
+            }
+
+            setSelectedRows([])
+            setSelectionKey((k) => k + 1)
+            setOpenBulkDialog(false)
+        } catch (error) {
+            console.error(error)
+            toast.error(error instanceof Error ? error.message : "Failed to delete")
+        } finally {
+            setBulkDeleting(false)
+        }
+    }
 
     const handleDeleteUser = async () => {
         if (!deletingUser || !token) return
@@ -193,6 +288,8 @@ export default function TrialUsersPage() {
             toast.success("Trial user deleted successfully!", { id: "trial-delete" })
             setOpenDeleteDialog(false)
             setDeletingUser(null)
+            setSelectedRows([])
+            setSelectionKey((k) => k + 1)
             fetchData()
         } catch (error) {
             console.error(error)
@@ -242,7 +339,7 @@ export default function TrialUsersPage() {
             )
 
             const workbook = XLSX.utils.book_new()
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Trial Users")
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Trial Students")
             XLSX.writeFile(workbook, "trial_users.xlsx")
         } catch (error) {
             console.error("Export error:", error)
@@ -251,9 +348,17 @@ export default function TrialUsersPage() {
     return (
         <div className="space-y-4">
             <div className="mb-7 flex items-center justify-between">
-                <h3 className="text-2xl font-semibold flex items-center gap-1">
+                <h3 className="text-2xl font-semibold flex items-center gap-2">
                     <Users2 />
-                    Trial Users
+                    Trial Students
+                    <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-600">
+                        {total.toLocaleString()}
+                        {/* Says "found" when a search or filter is on, so the number
+                            is never mistaken for the whole list. */}
+                        {debouncedSearch || dateRange?.from || dateRange?.to || _attended !== "all"
+                            ? " found"
+                            : " total"}
+                    </span>
                 </h3>
 
             </div>
@@ -331,6 +436,17 @@ export default function TrialUsersPage() {
                             </SelectContent>
                         </Select>
                     </div>
+                    {selectedRows.length > 0 && (
+                        <Button
+                            onClick={() => setOpenBulkDialog(true)}
+                            size={'sm'}
+                            variant={'destructive'}
+                            className="flex mt-0 items-center gap-2 text-xs h-8"
+                        >
+                            <Trash2 size={16} /> Delete selected ({selectedRows.length})
+                        </Button>
+                    )}
+
                     <Button
                         onClick={handleExport}
                         size={'sm'}
@@ -355,6 +471,9 @@ export default function TrialUsersPage() {
                     setPageSize(size)
                     setCurrentPage(1) // reset page when page size changes
                 }}
+                enableSelection
+                onSelectionChange={(rows) => setSelectedRows(rows as User[])}
+                selectionResetKey={selectionKey}
                 showActions={true} // ✅ enable actions
                 actions={['view', 'delete']}
                 onAction={(type, row) => {
@@ -441,6 +560,90 @@ export default function TrialUsersPage() {
                                 <div><p className="text-xs text-gray-600">How Many Join</p><p className="font-semibold">{selectedUser?.howManyJoin}</p></div>
                             </div>
                         </section>
+
+                        {/* Anything submitted before this was captured has no
+                            clientInfo at all, so the whole block is hidden
+                            rather than showing a grid of dashes. */}
+                        {selectedUser?.clientInfo ? (
+                            <>
+                                <section>
+                                    <h4 className="text-base font-semibold border-b">Device &amp; Browser</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm bg-muted/20 py-4 px-0.5">
+                                        <Detail label="Device" value={selectedUser.clientInfo.deviceType} />
+                                        <Detail label="Operating System" value={selectedUser.clientInfo.operatingSystem} />
+                                        <Detail label="Browser" value={selectedUser.clientInfo.browser} />
+                                        <Detail label="Screen" value={selectedUser.clientInfo.screenSize} />
+                                        <Detail label="Window" value={selectedUser.clientInfo.viewportSize} />
+                                        <Detail label="Pixel Ratio" value={selectedUser.clientInfo.pixelRatio} />
+                                        <Detail label="Colour Depth" value={selectedUser.clientInfo.colorDepth} />
+                                        <Detail label="CPU Cores" value={selectedUser.clientInfo.cpuCores} />
+                                        <Detail label="Device Memory" value={selectedUser.clientInfo.deviceMemory} />
+                                        <Detail label="Touch Screen" value={selectedUser.clientInfo.touchSupport} />
+                                        <Detail label="Connection" value={selectedUser.clientInfo.connectionType} />
+                                        <Detail label="Language" value={selectedUser.clientInfo.language} />
+                                    </div>
+                                    {selectedUser.clientInfo.userAgent && (
+                                        <p className="px-0.5 pb-3 text-[11px] leading-relaxed text-gray-500 break-all">
+                                            <span className="font-semibold">User Agent:</span>{" "}
+                                            {selectedUser.clientInfo.userAgent}
+                                        </p>
+                                    )}
+                                </section>
+
+                                <section>
+                                    <h4 className="text-base font-semibold border-b">Time Zone</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm bg-muted/20 py-4 px-0.5">
+                                        <Detail label="GMT Offset" value={selectedUser.clientInfo.gmtOffset} />
+                                        <Detail label="Time Zone" value={selectedUser.clientInfo.timezone} />
+                                        <Detail label="Time Zone (by IP)" value={selectedUser.clientInfo.ipTimezone} />
+                                        <div className="col-span-2 sm:col-span-3">
+                                            <p className="text-xs text-gray-600">Their Local Time When Submitting</p>
+                                            <p className="font-semibold">{selectedUser.clientInfo.localTime || "-"}</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section>
+                                    <h4 className="text-base font-semibold border-b">Location &amp; Network</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm bg-muted/20 py-4 px-0.5">
+                                        <Detail label="IP Address" value={selectedUser.clientInfo.ipAddress} />
+                                        <Detail label="Country" value={selectedUser.clientInfo.country} />
+                                        <Detail label="Region" value={selectedUser.clientInfo.region} />
+                                        <Detail label="City" value={selectedUser.clientInfo.city} />
+                                        <Detail label="Postal Code" value={selectedUser.clientInfo.postalCode} />
+                                        <Detail label="Internet Provider" value={selectedUser.clientInfo.isp} />
+                                    </div>
+                                    {selectedUser.clientInfo.lookupError && (
+                                        <p className="px-0.5 pb-3 text-[11px] text-amber-700">
+                                            IP lookup did not return a location: {selectedUser.clientInfo.lookupError}
+                                        </p>
+                                    )}
+                                </section>
+
+                                <section>
+                                    <h4 className="text-base font-semibold border-b">Where They Came From</h4>
+                                    <div className="grid grid-cols-1 gap-3 text-sm bg-muted/20 py-4 px-0.5">
+                                        <div>
+                                            <p className="text-xs text-gray-600">Referrer</p>
+                                            <p className="font-semibold break-all">
+                                                {selectedUser.clientInfo.referrer || "Typed the address in, or came from a bookmark"}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-gray-600">Form Page</p>
+                                            <p className="font-semibold break-all">
+                                                {selectedUser.clientInfo.pageUrl || "-"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </section>
+                            </>
+                        ) : (
+                            <p className="rounded-lg bg-muted/40 p-3 text-xs text-gray-500">
+                                No device information — this enquiry was submitted before it
+                                started being recorded.
+                            </p>
+                        )}
                     </div>
 
                 </DialogContent>
@@ -476,6 +679,56 @@ export default function TrialUsersPage() {
                                 className="bg-red-600 text-white hover:bg-red-700"
                             >
                                 Delete
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bulk Delete Confirmation. Names who is going, not just how many —
+                deleting a trial signup cannot be undone. */}
+            <Dialog open={openBulkDialog} onOpenChange={setOpenBulkDialog}>
+                <DialogContent className="max-w-md bg-white text-black p-6 rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Delete {selectedRows.length} trial student
+                            {selectedRows.length === 1 ? "" : "s"}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <p className="text-sm text-neutral-500">
+                            This permanently removes the selected signups. It cannot be
+                            undone.
+                        </p>
+
+                        <ul className="max-h-40 overflow-y-auto rounded-lg bg-muted/40 p-3 text-xs">
+                            {selectedRows.slice(0, 20).map((u) => (
+                                <li key={u._id} className="truncate">
+                                    {u.firstName} {u.lastName} &mdash; {u.email}
+                                </li>
+                            ))}
+                            {selectedRows.length > 20 && (
+                                <li className="pt-1 font-semibold">
+                                    …and {selectedRows.length - 20} more
+                                </li>
+                            )}
+                        </ul>
+
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                disabled={bulkDeleting}
+                                onClick={() => setOpenBulkDialog(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleBulkDelete}
+                                disabled={bulkDeleting}
+                                className="bg-red-600 text-white hover:bg-red-700"
+                            >
+                                {bulkDeleting ? "Deleting…" : "Delete"}
                             </Button>
                         </div>
                     </div>

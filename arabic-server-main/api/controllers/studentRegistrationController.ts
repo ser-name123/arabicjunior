@@ -191,3 +191,47 @@ export const deleteRegisteredStudent = async (req: Request, res: Response): Prom
 };
 
 export default studentRegistration;
+
+/**
+ * Delete several registered students at once.
+ *
+ * A POST rather than a DELETE because the ids travel in the body, and a request
+ * body on DELETE is poorly supported by proxies and some HTTP clients.
+ */
+export const deleteManyRegisteredStudents = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "No students selected" });
+    }
+
+    // Guard against a runaway request clearing the table in one call. The admin
+    // screen sends at most one page of rows, so this is far above normal use.
+    if (ids.length > 500) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "Too many at once. Select up to 500." });
+    }
+
+    const result = await StudentRegistration.deleteMany({ _id: { $in: ids } });
+
+    res.status(200).json({
+      status: "success",
+      message: `${result.deletedCount} registration(s) deleted`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Error deleting registered students:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to delete the registrations",
+      error,
+    });
+  }
+};

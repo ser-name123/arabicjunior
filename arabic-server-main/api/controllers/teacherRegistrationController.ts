@@ -16,8 +16,35 @@ const uploadToCloudinary = async (file: Express.Multer.File) => {
   return { ...result };
 };
 
+/**
+ * The name the candidate's own file had. Cloudinary replaces it with a random
+ * id, so this is the only chance to keep it. Any directory part is dropped
+ * (some browsers send a full path) and the length is capped, because this
+ * string is rendered straight into the admin panel.
+ */
+const originalFileName = (file: Express.Multer.File): string => {
+  const raw = (file.originalname || "").trim();
+  // Some browsers send a full path rather than a bare name.
+  const name = raw.split("/").pop()!.split("\\").pop()!;
+  return name.trim().slice(0, 200);
+};
+
+/**
+ * The resource type Cloudinary filed an asset under, read back off its URL
+ * (".../image/upload/..." or ".../raw/upload/...").
+ *
+ * Uploads here are made with resource_type "auto", which lets Cloudinary pick.
+ * "auto" is not a real type though — the destroy API rejects it — so deletes
+ * have to name the type the upload ended up with.
+ */
+const resourceTypeFromUrl = (url: string): "image" | "video" | "raw" => {
+  const beforeUpload = url.split("/upload/")[0].split("/");
+  const type = beforeUpload[beforeUpload.length - 1];
+  return type === "video" || type === "raw" ? type : "image";
+};
+
 export const teacherRegistration = async (req: Request, res: Response) => {
-  const uploadedAssets: string[] = [];
+  const uploadedAssets: { public_id: string; resource_type: string }[] = [];
   try {
     const body: TeacherRegistrationTypes = req.body;
     const files = req.files as {
@@ -30,9 +57,14 @@ export const teacherRegistration = async (req: Request, res: Response) => {
 
     for (const field of uploadFields) {
       if (files?.[field]?.[0]) {
-        const { secure_url, public_id } = await uploadToCloudinary(files[field][0]);
+        const file = files[field][0];
+        const { secure_url, public_id, resource_type } = await uploadToCloudinary(file);
         uploadedFiles[field] = secure_url;
-        uploadedAssets.push(public_id);
+
+        const name = originalFileName(file);
+        if (name) uploadedFiles[`${field}_name`] = name;
+
+        uploadedAssets.push({ public_id, resource_type });
       }
     }
 
@@ -80,12 +112,11 @@ export const teacherRegistration = async (req: Request, res: Response) => {
       error: error instanceof Error ? error.message : error,
     });
 
-    // Something went wrong: Rollback Cloudinary uploads
-    await Promise.all(
-      uploadedAssets.map((public_id) =>
-        cloudinary.uploader.destroy(public_id, {
-          resource_type: "auto",
-        })
+    // Something went wrong: Rollback Cloudinary uploads. allSettled, not all —
+    // one file refusing to delete must not abandon the rest.
+    await Promise.allSettled(
+      uploadedAssets.map(({ public_id, resource_type }) =>
+        cloudinary.uploader.destroy(public_id, { resource_type })
       )
     );
   }
@@ -99,6 +130,76 @@ export const getTeacherRegistrations = async (req: Request, res: Response): Prom
   } catch (error) {
     console.error("Error fetching teacher registrations:", error);
     res.status(500).json({ success: false, message: "Failed to fetch teacher registrations" });
+  }
+};
+
+/**
+ * POST: Remove several teacher applications at once (Admin Only).
+ *
+ * Each application owns up to five Cloudinary files — a photo and four
+ * documents — so deleting ten applications means clearing up to fifty assets.
+ * Left behind they are unreachable: nothing in the database points at them any
+ * more, and nobody can tell whose certificate is whose.
+ */
+export const deleteManyTeacherRegistrations = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: "No applications selected" });
+    }
+
+    if (ids.length > 200) {
+      return res.status(400).json({
+        success: false,
+        message: "Please delete at most 200 applications at a time",
+      });
+    }
+
+    const registrations = await TeacherRegistration.find({ _id: { $in: ids } });
+
+    const fileFields = ["personal_image", "doc_1", "doc_2", "doc_3", "doc_4"] as const;
+    const assets: { publicId: string; resourceType: "image" | "video" | "raw" }[] = [];
+
+    for (const registration of registrations) {
+      for (const field of fileFields) {
+        const url = registration[field];
+        if (!url || !url.includes("cloudinary.com")) continue;
+
+        const parts = url.split("/upload/");
+        if (parts.length < 2) continue;
+
+        const pathParts = parts[1].split("/");
+        const startIndex = pathParts[0].startsWith("v") ? 1 : 0;
+        const fullPublicIdWithExt = pathParts.slice(startIndex).join("/");
+        const lastDotIndex = fullPublicIdWithExt.lastIndexOf(".");
+        const publicId =
+          lastDotIndex > -1 ? fullPublicIdWithExt.substring(0, lastDotIndex) : fullPublicIdWithExt;
+
+        assets.push({ publicId, resourceType: resourceTypeFromUrl(url) });
+      }
+    }
+
+    const result = await TeacherRegistration.deleteMany({ _id: { $in: ids } });
+
+    // After the records are gone: a file that refuses to delete must not leave
+    // an application listed in the panel that cannot be opened.
+    for (const asset of assets) {
+      try {
+        await cloudinary.uploader.destroy(asset.publicId, { resource_type: asset.resourceType });
+      } catch (err) {
+        console.error(`Could not remove Cloudinary asset ${asset.publicId}:`, err);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} application(s) deleted successfully!`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Error deleting teacher registrations:", error);
+    res.status(500).json({ success: false, message: "Failed to delete the applications" });
   }
 };
 
@@ -123,7 +224,9 @@ export const deleteTeacherRegistration = async (req: Request, res: Response): Pr
             const fullPublicIdWithExt = pathParts.slice(startIndex).join("/");
             const lastDotIndex = fullPublicIdWithExt.lastIndexOf(".");
             const publicId = lastDotIndex > -1 ? fullPublicIdWithExt.substring(0, lastDotIndex) : fullPublicIdWithExt;
-            await cloudinary.uploader.destroy(publicId, { resource_type: "auto" });
+            await cloudinary.uploader.destroy(publicId, {
+              resource_type: resourceTypeFromUrl(url),
+            });
           }
         } catch (destroyErr) {
           console.error("Cloudinary asset deletion error:", destroyErr);

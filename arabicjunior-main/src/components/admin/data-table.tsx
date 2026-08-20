@@ -40,6 +40,7 @@ import {
 import { format } from "date-fns"
 import Loader from "../loader"
 import { Eye, Pencil, Trash2 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -54,6 +55,17 @@ interface DataTableProps<TData, TValue> {
     showActions?: boolean
     actions?: ("view" | "edit" | "delete")[]
     onAction?: (type: "view" | "edit" | "delete", row: TData) => void
+
+    /** Adds a checkbox column. Off by default so existing screens are unchanged. */
+    enableSelection?: boolean
+    /** Called with the currently ticked rows whenever the selection changes. */
+    onSelectionChange?: (rows: TData[]) => void
+    /**
+     * Change this value to clear the selection — after a page change or a
+     * delete, say. Without it the ticks would carry over to rows the admin
+     * never looked at, and the next bulk action would hit the wrong records.
+     */
+    selectionResetKey?: string | number
 }
 
 export function DataTable<TData, TValue>({
@@ -68,11 +80,58 @@ export function DataTable<TData, TValue>({
     showActions = false,
     actions = [],
     onAction,
+    enableSelection = false,
+    onSelectionChange,
+    selectionResetKey,
 }: DataTableProps<TData, TValue>) {
+    /**
+     * The action column is built inside a useMemo that deliberately does not
+     * depend on onAction — rebuilding the columns on every render would throw
+     * away the memo entirely. That left the column holding the onAction closure
+     * from the first render forever.
+     *
+     * It went unnoticed because the usual handler only calls state setters,
+     * which are stable, so a stale closure behaves identically. A handler that
+     * reads a value instead — a token, a filter, anything from state — silently
+     * got whatever that value was on the very first render, which for anything
+     * loaded asynchronously means null.
+     *
+     * Holding it in a ref keeps the columns memoised and still calls the
+     * current handler.
+     */
+    const onActionRef = React.useRef(onAction)
+    React.useEffect(() => {
+        onActionRef.current = onAction
+    })
+
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnVisibility, setColumnVisibility] =
         React.useState<VisibilityState>({})
     const [rowSelection, setRowSelection] = React.useState({})
+
+    const selectColumn: ColumnDef<TData, any> = {
+        id: "select",
+        header: ({ table }) => (
+            <Checkbox
+                checked={
+                    table.getIsAllPageRowsSelected() ||
+                    (table.getIsSomePageRowsSelected() && "indeterminate")
+                }
+                onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                aria-label="Select all rows on this page"
+                className="translate-y-[2px]"
+            />
+        ),
+        cell: ({ row }) => (
+            <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={(value) => row.toggleSelected(!!value)}
+                aria-label="Select row"
+                className="translate-y-[2px]"
+            />
+        ),
+        enableSorting: false,
+    }
 
     const actionColumn: ColumnDef<TData, any> = {
         id: "actions",
@@ -82,19 +141,19 @@ export function DataTable<TData, TValue>({
                 {actions?.includes("view") && (
                     <Eye
                         className="w-4 h-4 cursor-pointer text-orange-500 hover:text-orange-600"
-                        onClick={() => onAction?.("view", row.original)}
+                        onClick={() => onActionRef.current?.("view", row.original)}
                     />
                 )}
                 {actions?.includes("edit") && (
                     <Pencil
                         className="w-4 h-4 cursor-pointer text-green-500 hover:text-green-700"
-                        onClick={() => onAction?.("edit", row.original)}
+                        onClick={() => onActionRef.current?.("edit", row.original)}
                     />
                 )}
                 {actions?.includes("delete") && (
                     <Trash2
                         className="w-4 h-4 cursor-pointer text-red-500 hover:text-red-700"
-                        onClick={() => onAction?.("delete", row.original)}
+                        onClick={() => onActionRef.current?.("delete", row.original)}
                     />
                 )}
             </div>
@@ -102,8 +161,16 @@ export function DataTable<TData, TValue>({
     }
 
     const finalColumns = React.useMemo(
-        () => (showActions ? [...columns, actionColumn] : columns),
-        [columns, showActions]
+        () => [
+            ...(enableSelection ? [selectColumn] : []),
+            ...columns,
+            ...(showActions ? [actionColumn] : []),
+        ],
+        // selectColumn and actionColumn are rebuilt on every render by design;
+        // listing them here would rebuild the columns every render too. Neither
+        // closes over anything that changes — onAction is read through a ref.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [columns, showActions, enableSelection]
     )
 
     const table = useReactTable({
@@ -122,7 +189,23 @@ export function DataTable<TData, TValue>({
         },
         manualPagination: true,
         pageCount: totalPages,
+        enableRowSelection: enableSelection,
     })
+
+    // Report the ticked rows upward. Reading them from the table rather than
+    // from the rowSelection keys keeps the caller working with real records
+    // instead of row indexes.
+    const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original)
+    const selectedCount = selectedRows.length
+
+    React.useEffect(() => {
+        onSelectionChange?.(selectedRows)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedCount, selectionResetKey])
+
+    React.useEffect(() => {
+        setRowSelection({})
+    }, [selectionResetKey])
 
     return (
         // <div className="w-full">
@@ -170,7 +253,14 @@ export function DataTable<TData, TValue>({
                                     {row.getVisibleCells().map((cell) => (
                                         <TableCell key={cell.id} className="!text-xs">
                                             {(() => {
-                                                if (cell.column.id === "actions") {
+                                                // The select and actions columns have no accessor, so
+                                                // getValue() is undefined for them and the
+                                                // null-guard below would swallow the cell. That is
+                                                // what stopped the row tick boxes from ever
+                                                // appearing: the header rendered, because headers
+                                                // do not come through here, but every row cell
+                                                // returned null and only "select all" worked.
+                                                if (cell.column.id === "actions" || cell.column.id === "select") {
                                                     return flexRender(cell.column.columnDef.cell, cell.getContext())
                                                 }
 

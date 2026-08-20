@@ -8,16 +8,16 @@ export default function StudentThankYouPage() {
     <div className="min-h-[70vh] flex items-center justify-center bg-slate-50/40 py-16 px-4 relative overflow-hidden font-sans">
       
       {/* Decorative Floating Arabic Letters */}
-      <span className="absolute top-10 left-12 text-[#FF8B66]/10 text-7xl font-bold font-serif pointer-events-none select-none animate-float-slow">
+      <span className="absolute top-10 left-12 text-[#FF8B66]/10 text-7xl font-bold pointer-events-none select-none animate-float-slow">
         ج
       </span>
-      <span className="absolute bottom-16 left-24 text-[#4ADE80]/10 text-6xl font-bold font-serif pointer-events-none select-none animate-float-slow" style={{ animationDelay: '1.2s' }}>
+      <span className="absolute bottom-16 left-24 text-[#4ADE80]/10 text-6xl font-bold pointer-events-none select-none animate-float-slow" style={{ animationDelay: '1.2s' }}>
         أ
       </span>
-      <span className="absolute top-20 right-16 text-[#FACC15]/10 text-6xl font-bold font-serif pointer-events-none select-none animate-float-slow" style={{ animationDelay: '2.4s' }}>
+      <span className="absolute top-20 right-16 text-[#FACC15]/10 text-6xl font-bold pointer-events-none select-none animate-float-slow" style={{ animationDelay: '2.4s' }}>
         ب
       </span>
-      <span className="absolute bottom-10 right-28 text-[#9333EA]/10 text-7xl font-bold font-serif pointer-events-none select-none animate-float-slow" style={{ animationDelay: '1.8s' }}>
+      <span className="absolute bottom-10 right-28 text-[#9333EA]/10 text-7xl font-bold pointer-events-none select-none animate-float-slow" style={{ animationDelay: '1.8s' }}>
         ع
       </span>
 
@@ -34,7 +34,7 @@ export default function StudentThankYouPage() {
           <span className="text-xs sm:text-sm font-extrabold tracking-widest text-[#FB6238] uppercase">
             Trial Booked Successfully
           </span>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-[#0F172A] leading-tight">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-black leading-tight">
             Thank You for <br />
             <span className="text-[#FB6238]">Registering!</span>
           </h1>
