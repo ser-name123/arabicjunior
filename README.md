@@ -37,8 +37,34 @@ pnpm dev                  # http://localhost:5000
 the required keys.
 
 Backend needs: `PORT`, `NODE_ENV`, `MONGODB_URI`, `JWT_SECRET`, `SESSION_SECRET`, `CLIENT_URL`,
-`BREVO_V1_API_KEY`, `BREVO_VERIFIED_SENDER_EMAIL`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
+`BREVO_VERIFIED_SENDER_EMAIL`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
 `CLOUDINARY_API_SECRET`, `MASTER_2FA_RESET_KEY`.
+
+### Email
+
+Brevo, reachable two ways; set **one**:
+
+| Transport | Variables | Where to get them |
+| --- | --- | --- |
+| SMTP relay (preferred) | `BREVO_SMTP_HOST`, `BREVO_SMTP_PORT`, `BREVO_SMTP_LOGIN`, `BREVO_SMTP_KEY` | Brevo → SMTP & API → **SMTP** |
+| HTTP API (fallback) | `BREVO_V1_API_KEY` | Brevo → SMTP & API → **API keys** |
+
+SMTP wins when both are present. Use the HTTP API where the host blocks outbound
+SMTP ports — several PaaS plans do. With neither set, mail is dropped and a
+warning is logged once; sends never throw, so a failed email cannot break a
+registration.
+
+Check the credentials before trusting them:
+
+```bash
+cd arabic-server-main
+pnpm email:check                  # authenticate only
+pnpm email:check you@example.com  # authenticate, then send one real message
+```
+
+`BREVO_VERIFIED_SENDER_EMAIL` must be verified as a sender in Brevo or every
+message bounces. `ADMIN_NOTIFY_TO` / `ADMIN_NOTIFY_BCC` (comma-separated)
+override who receives internal enquiry notifications.
 
 Frontend needs: `NEXT_PUBLIC_API_BASE_URL`.
 

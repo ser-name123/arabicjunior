@@ -1,44 +1,20 @@
-import * as brevo from '@getbrevo/brevo';
-import { SendEmailParams } from '../types';
+import * as brevo from "@getbrevo/brevo";
+import { SendEmailParams } from "../types";
+import { deliver } from "./mailer";
 
-const apiInstance = new brevo.TransactionalEmailsApi();
-apiInstance.setApiKey(
-  brevo.TransactionalEmailsApiApiKeys.apiKey,
-  process.env.BREVO_V1_API_KEY as string
-);
-
+/**
+ * Mail to a single customer. The transport (Brevo SMTP or Brevo HTTP API) is
+ * chosen in ./mailer from whichever credentials the environment carries.
+ */
 export const sendEmail = async ({
   toEmail,
   toName,
   subject,
   htmlContent,
-}: SendEmailParams): Promise<brevo.CreateSmtpEmail> => {
-  const emailParams: brevo.SendSmtpEmail = {
-    sender: {
-      name: 'Arabic Juniors',
-      email: process.env.BREVO_VERIFIED_SENDER_EMAIL as string, // must be a verified sender
-    },
-    to: [
-      {
-        email: toEmail,
-        name: toName,
-      },
-    ],
+}: SendEmailParams): Promise<brevo.CreateSmtpEmail> =>
+  deliver({
+    senderName: "Arabic Juniors",
+    to: [{ email: toEmail, name: toName }],
     subject,
     htmlContent,
-  };
-
-  try {
-    const response = await apiInstance.sendTransacEmail(emailParams);
-    console.log('Email sent:', response.body);
-    return response.body as brevo.CreateSmtpEmail;
-  } catch (error: unknown) {
-    if (error instanceof brevo.HttpError) {
-      console.error('Brevo API error (non-blocking):', error.response);
-    } else {
-      console.error('Unexpected error sending email (non-blocking):', error);
-    }
-    // Return empty fallback instead of rethrowing to prevent 500 crashes on submit
-    return {} as brevo.CreateSmtpEmail;
-  }
-};
+  });
