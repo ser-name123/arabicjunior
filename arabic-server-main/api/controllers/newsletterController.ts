@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Newsletter from "../models/newsletter";
 import { sendEmailToAdmin } from "../utils/sendEmailToAdmin";
+import { emailLayout, detailTable, spacer, mailLink } from "../utils/emailTemplate";
 
 // Subscribe to newsletter
 export const subscribeNewsletter = async (req: Request, res: Response) => {
@@ -11,38 +12,17 @@ export const subscribeNewsletter = async (req: Request, res: Response) => {
         const newSubscriber = new Newsletter({ email });
         await newSubscriber.save();
 
-        const htmlContent = `<table width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
-            <tr>
-                <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden;">
-                    <tr>
-                    <td style="background-color: #4F46E5; padding: 20px; color: #ffffff; text-align: center;">
-                        <h2 style="margin: 0;">📰 New Newsletter Subscription</h2>
-                    </td>
-                    </tr>
-                    <tr>
-                    <td style="padding: 30px;">
-                        <p style="font-size: 16px; color: #333333; margin: 0 0 10px;">Hi Admin,</p>
-                        <p style="font-size: 16px; color: #333333; margin: 0 0 20px;">
-                        A new user has subscribed to your newsletter:
-                        </p>
-                        <table style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                            <td style="padding: 10px; background-color: #f3f4f6; border-radius: 4px;">
-                            <strong>Email:</strong> ${email}
-                            </td>
-                        </tr>
-                        </table>
-                        <p style="font-size: 14px; color: #999999; margin-top: 30px;">
-                        You’re receiving this email because someone subscribed via <a href="https://arabicjuniors.com" style="color: #EF4444; text-decoration: none;">ArabicJuniors.com</a>.
-                        </p>
-                    </td>
-                    </tr>
-                </table>
-                </td>
-            </tr>
-            </table>
-            `
+        const htmlContent = emailLayout({
+            preheader: `${email} subscribed to the Arabic Juniors newsletter.`,
+            eyebrow: "New newsletter subscription",
+            title: "Someone subscribed",
+            accent: "green",
+            content: `
+              ${detailTable([{ label: "Email", value: mailLink(email) }])}
+              ${spacer(10)}
+            `,
+            footerNote: "Subscribed through the newsletter form on arabicjuniors.com.",
+        });
 
         // Send email to admin
         await sendEmailToAdmin({

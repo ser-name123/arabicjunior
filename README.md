@@ -62,6 +62,33 @@ pnpm email:check                  # authenticate only
 pnpm email:check you@example.com  # authenticate, then send one real message
 ```
 
+Note: some hosts, Render among them, block outbound SMTP ports on their cheaper
+plans. A send that takes ~10s per message and never arrives is that block, not a
+bad key — switch to the HTTP API. Brevo may also restrict an API key to
+allow-listed IPs (Brevo -> Security -> Authorised IPs); add every outbound IP the
+host lists for the service, not just the one an error names.
+
+### Email templates
+
+All messages share one layout, `api/utils/emailTemplate.ts` — a header, a
+`detailTable` of label/value pairs, `callout`, `button` and a common footer.
+Templates themselves live in `api/services/emailService.ts` and the three form
+controllers.
+
+Preview every template without sending anything:
+
+```bash
+pnpm email:preview        # writes email-preview/*.html, open index.html
+```
+
+Two rules when editing them:
+
+- **Do not escape values.** The middleware in `api/index.ts` already runs bodies
+  through sanitize-html, so escaping again shows `&amp;` to the reader. Values
+  going into an `href` or other attribute use `attr()`.
+- **No explanatory HTML comments inside the template literal.** They ship to
+  every recipient. Put the reasoning in TypeScript comments outside it.
+
 `BREVO_VERIFIED_SENDER_EMAIL` must be verified as a sender in Brevo or every
 message bounces. `ADMIN_NOTIFY_TO` / `ADMIN_NOTIFY_BCC` (comma-separated)
 override who receives internal enquiry notifications.

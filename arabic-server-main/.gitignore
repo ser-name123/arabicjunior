@@ -24,3 +24,6 @@ Thumbs.db
 .sublime-project
 .sublime-workspace
 .vercel
+
+# Output of `pnpm email:preview` — generated, never committed.
+email-preview/
