@@ -40,10 +40,30 @@ services:
       - key: SESSION_SECRET
         sync: false
 
-      # Without a working Brevo key, registration saves the record and then
-      # fails on the confirmation email, returning a 500 to the visitor.
+      # Email. Brevo exposes the same mailbox two ways and the app takes
+      # whichever is configured, preferring SMTP. Set ONE pair:
+      #
+      #   SMTP  -> BREVO_SMTP_LOGIN + BREVO_SMTP_KEY
+      #   API   -> BREVO_V1_API_KEY
+      #
+      # If Render turns out to block outbound SMTP on this plan, clearing the
+      # two SMTP values hands delivery back to the HTTP API with no redeploy of
+      # anything but the config. With neither set, mail is dropped and a
+      # warning is logged once — sends never throw, so a failed email cannot
+      # break a registration.
+      #
+      # Verify with: pnpm email:check <address>
+      - key: BREVO_SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: BREVO_SMTP_PORT
+        value: 587
+      - key: BREVO_SMTP_LOGIN
+        sync: false # looks like 9xxxxx@smtp-brevo.com
+      - key: BREVO_SMTP_KEY
+        sync: false # looks like xsmtpsib-...
       - key: BREVO_V1_API_KEY
-        sync: false
+        sync: false # looks like xkeysib-... ; only needed without the SMTP pair
+      # Must be verified as a sender in Brevo or every message bounces.
       - key: BREVO_VERIFIED_SENDER_EMAIL
         sync: false
 
