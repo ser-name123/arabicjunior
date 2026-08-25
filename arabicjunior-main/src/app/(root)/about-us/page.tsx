@@ -30,8 +30,8 @@ const FAQ_DATA: FaqTypes[] = [
   },
   {
     key: "fifth-faq",
-    question: "Can I choose between group and individual classes?",
-    answer: `Yes, you can choose what suits you best. We offer affordable one-to-one sessions as well as small group classes for better interaction.`,
+    question: "Can I choose between group & individual classes?",
+    answer: `Yes, you can choose what suits you best. We are offering affordable one-to-one sessions as well as small group classes for better interaction.`,
   },
 ];
 
