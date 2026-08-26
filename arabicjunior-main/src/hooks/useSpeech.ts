@@ -102,11 +102,51 @@ export const useSpeech = ({ language, onResult }: UseSpeechOptions) => {
     };
   }, [language]);
 
-  const startListening = useCallback(() => {
+  /**
+   * Asks for the microphone before handing over to the recogniser.
+   *
+   * Chrome's speech recogniser does prompt on its own, but only the first time
+   * and only from inside its own machinery — when it cannot, it reports a bare
+   * "not-allowed" and the visitor is told to change a setting they were never
+   * offered. Requesting explicitly puts the browser's real permission dialog in
+   * front of them on the first click, and gives a specific reason on the rest.
+   */
+  const requestMicPermission = useCallback(async (): Promise<boolean> => {
+    // Absent on insecure origins (plain http that is not localhost), where
+    // capture is refused before any prompt can appear.
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setMicError(
+        "Voice input needs a secure (https) connection. Please type instead."
+      );
+      return false;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // The recogniser opens its own capture, so this one is released straight
+      // away — otherwise the browser's recording indicator stays lit.
+      stream.getTracks().forEach((track) => track.stop());
+      return true;
+    } catch (error) {
+      const name = (error as DOMException)?.name;
+      setMicError(
+        name === "NotAllowedError"
+          ? "Microphone access was blocked. Click the lock icon in the address bar, set Microphone to Allow, then try again."
+          : name === "NotFoundError"
+          ? "No microphone was found on this device."
+          : "The microphone could not be used. Please type instead."
+      );
+      return false;
+    }
+  }, []);
+
+  const startListening = useCallback(async () => {
     const recognition = recognitionRef.current;
     if (!recognition || listening) return;
 
     setMicError(null);
+    if (!(await requestMicPermission())) return;
+
     try {
       recognition.start();
       setListening(true);
@@ -114,7 +154,7 @@ export const useSpeech = ({ language, onResult }: UseSpeechOptions) => {
       // start() throws if it is already running; treat it as already listening.
       setListening(true);
     }
-  }, [listening]);
+  }, [listening, requestMicPermission]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();

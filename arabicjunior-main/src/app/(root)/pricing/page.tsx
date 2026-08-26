@@ -8,7 +8,6 @@ import type { PricingGroup } from "@/types/Pricing";
 import Reveal from "@/components/Reveal";
 import { fetchSettings } from "@/lib/contentApi";
 import type { PricingPageContent } from "@/types/PricingPage";
-import PlanNotes from "./components/PlanNotes";
 import IncludedInEveryPlan from "./components/IncludedInEveryPlan";
 import WhichPlan from "./components/WhichPlan";
 import HowItWorks from "./components/HowItWorks";
@@ -79,8 +78,6 @@ const PricingPlanPage = async () => {
                 <PricingTabs groups={populated} />
               </div>
             )}
-
-            <PlanNotes notes={content?.planNotes ?? []} />
           </div>
         </div>
       </section>

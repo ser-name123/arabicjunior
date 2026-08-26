@@ -37,7 +37,11 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            // microphone=(self) — the chatbot's voice input needs it. An empty
+            // allowlist does not merely prompt-and-deny, it blocks capture
+            // outright: the browser never shows its permission dialog, and the
+            // visitor is told to "allow it in settings" with no setting to change.
+            value: 'camera=(), microphone=(self), geolocation=()',
           },
         ],
       },
